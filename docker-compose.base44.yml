@@ -1,0 +1,78 @@
+# Base44 sandbox / development stack.
+#
+# Runs the cloned source directly (bind mount + `next dev`, live reload) — never a
+# prebuilt application image. Dependencies are installed on container startup from
+# the mounted lockfile so manifest/lockfile edits are picked up without a rebuild.
+#
+#   docker compose -f docker-compose.base44.yml up -d --build
+#
+# Web entry point: http://localhost:3000
+services:
+  db:
+    # Postgres backs `pg` + `drizzle-orm` + `better-auth` (see package.json).
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: on-failure
+    labels:
+      base44.project: "Database"
+      base44.kind: "infra"
+
+  web:
+    image: node:22
+    working_dir: /app
+    command:
+      - sh
+      - -ec
+      - |
+        corepack enable
+        corepack prepare pnpm@12.3.4 --activate
+        CI=true pnpm install --frozen-lockfile
+        exec ./node_modules/.bin/next dev -H 0.0.0.0 -p 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      # Source is bind-mounted so edits are live; dependency dir is a named
+      # volume so the sandbox checkout stays clean and installs are fast.
+      - .:/app
+      - web_node_modules:/app/node_modules
+    environment:
+      DATABASE_URL: postgres://app:app@db:5432/app
+      WATCHPACK_POLLING: "true"
+      # Consumed by next.config.mjs to allow the preview origin in development.
+      # Passed through from the platform; never hardcoded.
+      BASE44_PREVIEW_MODE:
+      BASE44_PUBLIC_HOST_SUFFIX:
+    env_file:
+      # Platform-managed secrets, outside the repo. Last entry so it wins.
+      - /run/base44/app.env
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+    restart: on-failure
+    labels:
+      base44.project: "Web"
+      base44.kind: "web"
+      base44.port: "3000"
+
+volumes:
+  db_data:
+  web_node_modules:
