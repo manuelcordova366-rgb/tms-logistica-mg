@@ -1,0 +1,130 @@
+'use client'
+
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import Image from 'next/image'
+import { CalendarDays, Clock, FileText, Layers, Radio, CalendarClock, Tv } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useFleet } from '@/lib/fleet-store'
+import { formatPlanDate } from '@/lib/fleet-format'
+
+export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'colocacion'
+
+const TABS: { id: TabId; label: string; icon: typeof Layers }[] = [
+  { id: 'patio', label: 'Patio', icon: Layers },
+  { id: 'planeacion', label: 'Planeación', icon: CalendarClock },
+  { id: 'supervisor', label: 'Supervisor', icon: Radio },
+  { id: 'resumen', label: 'Resumen', icon: Tv },
+  { id: 'colocacion', label: 'Colocación', icon: FileText },
+]
+
+export function Header({ tab, onTabChange, actions }: { tab: TabId; onTabChange: (tab: TabId) => void; actions: ReactNode }) {
+  const { units } = useFleet()
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
+      <div className="flex flex-col gap-3 px-4 py-2.5 md:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-[72px] items-center justify-center overflow-hidden rounded-lg bg-white p-1">
+              <Image src="/logistica-mg-logo-mark.png" alt="Logística M&G TMS" width={525} height={355} className="h-auto w-full" priority />
+            </div>
+            <h1 className="flex flex-wrap items-center gap-2">
+              <span className="flex flex-col leading-tight">
+                <span className="text-lg font-bold tracking-tight">Control de Flota</span>
+                <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Software de monitoreo de unidades</span>
+              </span>
+              <span className="rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-primary">
+                CD VILLAHERMOSA
+              </span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <PlanDatePicker />
+            <LiveClock />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <nav aria-label="Secciones" className="flex overflow-x-auto rounded-xl border border-border bg-card/70 p-1 scrollbar-thin">
+            {TABS.map(({ id, label, icon: Icon }) => {
+              const active = tab === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onTabChange(id)}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm transition-colors',
+                    active
+                      ? 'border-primary/40 bg-primary/10 font-semibold text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-4" aria-hidden />
+                  {label}
+                  {id === 'resumen' && (
+                    <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">{units.length}</span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function PlanDatePicker() {
+  const { planDate, dispatch } = useFleet()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.showPicker?.()}
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 font-mono text-xs text-primary shadow-md shadow-primary/10 hover:bg-primary/15"
+      >
+        <CalendarDays className="size-4" aria-hidden />
+        <span>
+          Plan: <strong className="text-foreground">{formatPlanDate(planDate)}</strong>
+        </span>
+      </button>
+      <input
+        ref={inputRef}
+        type="date"
+        aria-hidden
+        aria-label="Fecha del plan"
+        value={planDate}
+        onChange={(e) => e.target.value && dispatch({ type: 'setPlanDate', date: e.target.value })}
+        className="pointer-events-none absolute inset-0 opacity-0"
+        tabIndex={-1}
+      />
+    </div>
+  )
+}
+
+function LiveClock() {
+  const [time, setTime] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fmt = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+    const tick = () => setTime(fmt.format(new Date()))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <div className="hidden h-9 items-center gap-2 rounded-lg border border-border bg-card/70 px-3 font-mono text-xs text-secondary-foreground sm:inline-flex">
+      <span className="size-2 rounded-full bg-success shadow-[0_0_8px] shadow-success" aria-hidden />
+      <Clock className="size-4" aria-hidden />
+      <time suppressHydrationWarning className="min-w-24 tabular-nums">
+        {time ?? '--:--:--'}
+      </time>
+    </div>
+  )
+}
