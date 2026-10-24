@@ -15,6 +15,11 @@ const previewOrigins =
     ? [`https://3000-${process.env.BASE44_PUBLIC_HOST_SUFFIX}`]
     : []
 
+// The proxy rewrites the Host header to the internal sandbox host, so the public preview
+// origin has to be stated explicitly — otherwise the OAuth redirect URI sent to Google /
+// Microsoft would not be the one registered for the app. Same flag gate as above.
+const previewBaseURL = previewOrigins[0]
+
 // Google / Outlook sign-in is only wired up once the credentials exist, so the app keeps
 // booting (and shows which provider is missing) while they are being configured.
 const socialProviders = {
