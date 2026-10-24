@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { CirclePlus, CloudUpload, FileSpreadsheet, History, Save } from 'lucide-react'
 import { loadFleetState, saveFleetState } from '@/app/actions/fleet'
-import type { AppUser } from '@/lib/auth-shared'
 import { FleetProvider, newTripId, useFleet } from '@/lib/fleet-store'
 import { exportPatio, exportTrips } from '@/lib/fleet-exports'
 import { parseCsv } from '@/lib/fleet-format'
@@ -17,22 +16,20 @@ import { PatioView } from './patio-view'
 import { PlaneacionView } from './planeacion-view'
 import { SupervisorView } from './supervisor-view'
 import { ColocacionView } from './colocacion-view'
-import { UsersView } from './users-view'
 import { UnitDialog } from './unit-dialog'
 import { TripDialog, type TripDialogState } from './trip-dialog'
 import { HistoryDialog } from './history-dialog'
 
-export function AppShell({ user }: { user: AppUser }) {
+export function AppShell() {
   return (
     <FleetProvider>
-      <FleetApp user={user} />
+      <FleetApp />
     </FleetProvider>
   )
 }
 
-function FleetApp({ user }: { user: AppUser }) {
+function FleetApp() {
   const fleet = useFleet()
-  const isAdmin = user.role === 'admin'
   const [tab, setTab] = useState<TabId>('resumen')
   const [saving, setSaving] = useState(false)
   const [unitDialog, setUnitDialog] = useState<{ unit: Unit | null } | null>(null)
@@ -190,14 +187,13 @@ function FleetApp({ user }: { user: AppUser }) {
       </>
     ),
     colocacion: null,
-    usuarios: null,
   }
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
       <BrandBackdrop />
       <NetworkBackground />
-      <Header tab={tab} onTabChange={setTab} actions={actions[tab]} user={user} />
+      <Header tab={tab} onTabChange={setTab} actions={actions[tab]} />
 
       <main className="flex-1 px-4 py-5 md:px-5">
         {tab === 'resumen' && <ResumenView />}
@@ -214,8 +210,7 @@ function FleetApp({ user }: { user: AppUser }) {
           />
         )}
         {tab === 'supervisor' && <SupervisorView onEditTrip={onEditTrip} />}
-        {tab === 'colocacion' && <ColocacionView canEdit={isAdmin} />}
-        {tab === 'usuarios' && isAdmin && <UsersView />}
+        {tab === 'colocacion' && <ColocacionView />}
       </main>
 
       <footer className="border-t border-border bg-background/85 px-4 py-6 text-center text-xs text-muted-foreground backdrop-blur-md">

@@ -1,14 +1,23 @@
-// The preview proxy serves the app from https://3000-<suffix>.<domain>, which Next
-// treats as a cross-origin dev request. Allow exactly that origin in the sandbox;
-// outside preview mode (flag unset or any other value) behaviour is unchanged.
-const previewOrigin =
+// The preview proxy serves the app from https://3000-<suffix>.<domain>, a different
+// origin than the host header it forwards (the sandbox host). Dev-time requests coming
+// from that origin have to be allowed explicitly — for dev assets/HMR *and* for Server
+// Actions, which compare the `origin` header against the forwarded host. Gated on the
+// sandbox flag: with it unset the config keeps its original behaviour.
+const previewHost =
   process.env.BASE44_PREVIEW_MODE === '1' && process.env.BASE44_PUBLIC_HOST_SUFFIX
-    ? [`3000-${process.env.BASE44_PUBLIC_HOST_SUFFIX}`]
-    : []
+    ? `3000-${process.env.BASE44_PUBLIC_HOST_SUFFIX}`
+    : null
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: previewOrigin,
+  ...(previewHost
+    ? {
+        allowedDevOrigins: [previewHost],
+        experimental: {
+          serverActions: { allowedOrigins: [previewHost] },
+        },
+      }
+    : {}),
   typescript: {
     ignoreBuildErrors: true,
   },

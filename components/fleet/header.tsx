@@ -2,37 +2,31 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { CalendarClock, CalendarDays, Clock, FileText, Layers, LogOut, Radio, Tv, UserRound, UsersRound } from 'lucide-react'
+import { CalendarClock, CalendarDays, Clock, FileText, Layers, Radio, Tv } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { authClient } from '@/lib/auth-client'
-import { ROLE_LABEL, type AppUser } from '@/lib/auth-shared'
 import { useFleet } from '@/lib/fleet-store'
 import { formatPlanDate } from '@/lib/fleet-format'
 
-export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'colocacion' | 'usuarios'
+export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'colocacion'
 
-const TABS: { id: TabId; label: string; icon: typeof Layers; adminOnly?: boolean }[] = [
+const TABS: { id: TabId; label: string; icon: typeof Layers }[] = [
   { id: 'patio', label: 'Patio', icon: Layers },
   { id: 'planeacion', label: 'Planeación', icon: CalendarClock },
   { id: 'supervisor', label: 'Supervisor', icon: Radio },
   { id: 'resumen', label: 'Resumen', icon: Tv },
   { id: 'colocacion', label: 'Colocación', icon: FileText },
-  { id: 'usuarios', label: 'Usuarios', icon: UsersRound, adminOnly: true },
 ]
 
 export function Header({
   tab,
   onTabChange,
   actions,
-  user,
 }: {
   tab: TabId
   onTabChange: (tab: TabId) => void
   actions: ReactNode
-  user: AppUser
 }) {
   const { units } = useFleet()
-  const tabs = TABS.filter((entry) => !entry.adminOnly || user.role === 'admin')
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
@@ -50,13 +44,12 @@ export function Header({
           <div className="flex items-center gap-2">
             <PlanDatePicker />
             <LiveClock />
-            <UserChip user={user} />
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav aria-label="Secciones" className="flex overflow-x-auto rounded-xl border border-border bg-card/70 p-1 scrollbar-thin">
-            {tabs.map(({ id, label, icon: Icon }) => {
+            {TABS.map(({ id, label, icon: Icon }) => {
               const active = tab === id
               return (
                 <button
@@ -84,34 +77,6 @@ export function Header({
         </div>
       </div>
     </header>
-  )
-}
-
-function UserChip({ user }: { user: AppUser }) {
-  const [busy, setBusy] = useState(false)
-
-  return (
-    <div className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card/70 px-3 text-xs">
-      <UserRound className="size-4 text-primary" aria-hidden />
-      <span className="max-w-32 truncate font-semibold">{user.name}</span>
-      <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary uppercase">
-        {ROLE_LABEL[user.role]}
-      </span>
-      <button
-        type="button"
-        aria-label="Cerrar sesión"
-        title="Cerrar sesión"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true)
-          await authClient.signOut()
-          window.location.reload()
-        }}
-        className="inline-flex size-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-danger disabled:opacity-50"
-      >
-        <LogOut className="size-3.5" aria-hidden />
-      </button>
-    </div>
   )
 }
 
