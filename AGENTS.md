@@ -80,6 +80,29 @@ returning 500 in the sandbox, check this first — the error only appears in `lo
   are local infra, generated inline in compose: `postgres://app:app@db:5432/app` as
   `DATABASE_URL`.
 
+## Board modules (current state)
+
+- **Unidades / Patio**: the unit registry starts **empty on purpose** — `SEED_UNITS` in
+  `lib/fleet-data.ts` is `[]` (the previous plantilla was cleared on request). Units are
+  captured by hand from Patio → *Registrar Unidad en Patio*, or with the CSV template.
+  `SEED_TRIPS` still holds the demo trips, so until they are reassigned they show as
+  `SIN UNIDAD` in Planeación and the Resumen table has no rows.
+- **Rol de Incidencias** (`components/fleet/incidencias-view.tsx`, tab `incidencias`):
+  weekly Monday→Sunday log of asistencias / faltas / incapacidades / permisos / traslados /
+  vacaciones. One `<select>` per operator-day; the value is stored in the board's
+  `incidencias` map under `"<fecha ISO>|<operador>"` (`IncidenciaTipo`, `IncidenciaRegistro`
+  in `lib/fleet-data.ts`) and an unregistered cell reads as `ASISTENCIA`. The operator
+  roster (`OPERADORES`) is the distinct `operador` of `SEED_TRIPS`. The search box filters
+  by operator name (accent-insensitive). The log travels inside the same `fleet_state` JSON
+  row as the rest of the board, so it is written by **Guardar Día** (the toolbar button on
+  that tab) and restored on page load.
+- **Historial**: the "Historial" button and the restore dialog were removed on request.
+  `saveDay` still appends to the persisted `history` array (kept so the stored schema does
+  not break), but no screen browses or restores it.
+- **Colocación** was replaced by the Rol de Incidencias: `components/fleet/colocacion-view.tsx`,
+  `colocacion-report.tsx` and the data it used (`COLOCACION_EJECUTADAS`, `HEADCOUNT`,
+  `MOVIMIENTOS_LABELS`) are gone.
+
 ## Verifying a change
 
 ```bash

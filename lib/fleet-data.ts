@@ -89,6 +89,8 @@ export interface FleetData {
   trips: Trip[]
   history: HistoryEntry[]
   planDate: string
+  /** Rol de incidencias capturado por semana (opcional: las filas previas no lo traen). */
+  incidencias?: IncidenciaRegistro
 }
 
 export function fleetGroupOf(kind: UnitKind): FleetGroup {
@@ -137,57 +139,12 @@ export function normalizePatioStatus(value: string): PatioStatus {
   return 'disponible'
 }
 
-const u = (eco: string, placas: string, capacidad: number, kind: UnitKind, patioStatus: PatioStatus = 'disponible'): Unit => ({
-  eco,
-  placas,
-  capacidad,
-  kind,
-  patioStatus,
-})
-
-export const SEED_UNITS: Unit[] = [
-  u('3153', 'CV4372F', 18, 'Camioneta'),
-  u('3426', 'RU5466B', 18, 'Camioneta'),
-  u('3271', 'CV4378F', 18, 'Camioneta'),
-  u('3496', 'LE39123', 18, 'Camioneta'),
-  u('3401', 'RU5464B', 18, 'Camioneta'),
-  u('3393', 'GT3465C', 18, 'Camioneta'),
-  u('3237', 'LE1734R', 18, 'Camioneta'),
-  u('3471', 'CV4395F', 18, 'Camioneta'),
-  u('3483', 'LE3094S', 18, 'Camioneta'),
-  u('3488', 'CE5426T', 18, 'Camioneta'),
-  u('3412', 'BTAC7J', 18, 'Camioneta'),
-  u('3455', 'RE7A46H', 18, 'Camioneta'),
-  u('3301', 'AD8A3D', 18, 'Camioneta'),
-  u('4069', '175FF5', 50, 'Rango Medio'),
-  u('4071', '174FF5', 50, 'Rango Medio'),
-  u('4100', '21FA46', 50, 'Rango Medio'),
-  u('4179', '49FA4J', 50, 'Rango Medio'),
-  u('4109', '68FA7G', 50, 'Rango Medio', 'taller'),
-  u('4192', '89FA4G', 50, 'Rango Medio', 'taller'),
-  u('4142', '18FA56', 50, 'Rango Medio'),
-  u('4118', '97FA6H', 50, 'Rango Medio'),
-  u('4135', '12FA56', 40, 'Rango Medio'),
-  u('4115', '57FA76', 50, 'Rango Medio'),
-  u('4198', '94FA68', 50, 'Rango Medio'),
-  u('4104', '43FA78', 40, 'Rango Medio'),
-  u('4188', '67FA76', 40, 'Rango Medio'),
-  u('4168', '43FA4J', 50, 'Rango Medio'),
-  u('4125', '05FA56', 50, 'Rango Medio'),
-  u('4193', '92FA48', 50, 'Rango Medio'),
-  u('5035', '73FA3F', 110, 'Tracto / Full'),
-  u('5036', '74FA3F', 90, 'Sencillo'),
-  u('5052', '55FA7H', 110, 'Tracto / Full'),
-  u('5053', '52FA7H', 110, 'Tracto / Full'),
-  u('5069', '99FA6H', 110, 'Tracto / Full'),
-  u('5070', '04FA7K', 110, 'Tracto / Full'),
-  u('5013', '02DF68', 110, 'Tracto / Full', 'taller'),
-  u('5009', '55FA6N', 110, 'Tracto / Full', 'taller'),
-  u('5026', '28FA8H', 90, 'Sencillo'),
-  u('5054', '73FA3P', 90, 'Sencillo'),
-  u('5068', '64BL2S', 110, 'Sencillo'),
-  u('5066', '26FA46', 110, 'Tracto / Full'),
-]
+/**
+ * El registro de unidades arranca vacío: se dio de baja toda la plantilla anterior.
+ * Las unidades se capturan a mano desde Patio ("Registrar Unidad en Patio") o con la
+ * plantilla CSV.
+ */
+export const SEED_UNITS: Unit[] = []
 
 let tripSeq = 0
 const t = (
@@ -298,52 +255,28 @@ export const SEED_TRIPS: Trip[] = [
   t(39, '3153', 'ALEJANDRO RAMON DE LA CRUZ', 'CS00381066', 'Ekt Motos Tecolutilla', 'LOCAL', '14:42', { cluster: 'TAB-2' }),
 ]
 
-export interface ColocacionRow {
-  destino: string
-  tipo: string
-  capacidad: number
-  linea: string
+/** Incidencias que se registran en el rol semanal de operadores (lunes a domingo). */
+export type IncidenciaTipo = 'ASISTENCIA' | 'FALTA' | 'INCAPACIDAD' | 'PERMISO' | 'TRASLADO' | 'VACACIONES'
+
+export const INCIDENCIA_TIPOS: IncidenciaTipo[] = ['ASISTENCIA', 'FALTA', 'INCAPACIDAD', 'PERMISO', 'TRASLADO', 'VACACIONES']
+
+export const INCIDENCIA_LABEL: Record<IncidenciaTipo, string> = {
+  ASISTENCIA: 'Asistencia',
+  FALTA: 'Falta',
+  INCAPACIDAD: 'Incapacidad',
+  PERMISO: 'Permiso',
+  TRASLADO: 'Traslado',
+  VACACIONES: 'Vacaciones',
 }
 
-export const COLOCACION_EJECUTADAS: ColocacionRow[] = [
-  { destino: 'Frontera', tipo: 'Retail', capacidad: 18, linea: 'LTI - VHS' },
-  { destino: 'Cárdenas Tabasco', tipo: 'Foráneo', capacidad: 50, linea: 'VALLEY' },
-  { destino: 'Jalpa de Méndez', tipo: 'HUB', capacidad: 50, linea: 'BRITO' },
-  { destino: 'HUB Tuxtla', tipo: 'Retail', capacidad: 153, linea: 'VALLEY' },
-  { destino: 'Coatzacoalcos', tipo: 'Foráneo', capacidad: 50, linea: 'VALLEY' },
-  { destino: 'Tonalá Chiapas', tipo: 'Foráneo', capacidad: 90, linea: 'LIBRA EXPRESS' },
-  { destino: 'Tapachula', tipo: 'Foráneo', capacidad: 110, linea: 'VALLEY' },
-  { destino: 'Matías Romero', tipo: 'HUB', capacidad: 110, linea: 'BRITO' },
-  { destino: 'Pichucalco', tipo: 'Foráneo', capacidad: 50, linea: 'LTI - VHS' },
-  { destino: 'Las Choapas', tipo: 'Foráneo', capacidad: 50, linea: 'LTI - VHS' },
-  { destino: 'Huimanguillo', tipo: 'Foráneo', capacidad: 110, linea: 'LIBRA EXPRESS' },
-]
+/** `"<fecha ISO>|<operador>"` → incidencia registrada ese día. Sin registro se asume ASISTENCIA. */
+export type IncidenciaRegistro = Record<string, IncidenciaTipo>
 
-export const MOVIMIENTOS_LABELS = [
-  'Italikas',
-  'Conectividad',
-  'Colchones y Box',
-  'Entretenimiento',
-  'Muebles y Hogar',
-  'LB Enseres',
-] as const
+/** Operadores que se capturan en el rol, tomados de la plantilla de viajes. */
+export const OPERADORES: string[] = [...new Set(SEED_TRIPS.map((t) => t.operador))]
+  .filter((nombre) => nombre && nombre !== 'POR ASIGNAR')
+  .sort()
 
-export interface HeadcountRow {
-  rol: string
-  autorizado: number
-  activo: number
-  incapacidades: number
-  vacaciones: number
-  faltas: number
-}
-
-export const HEADCOUNT: HeadcountRow[] = [
-  { rol: 'Op. Camioneta', autorizado: 14, activo: 14, incapacidades: 0, vacaciones: 0, faltas: 0 },
-  { rol: 'Op. RM (Rango Medio)', autorizado: 24, activo: 23, incapacidades: 0, vacaciones: 0, faltas: 0 },
-  { rol: 'Op. Tractor', autorizado: 7, activo: 7, incapacidades: 0, vacaciones: 0, faltas: 0 },
-  { rol: 'Op. Fulles', autorizado: 6, activo: 5, incapacidades: 0, vacaciones: 0, faltas: 0 },
-  { rol: 'Ayudantes', autorizado: 38, activo: 38, incapacidades: 2, vacaciones: 2, faltas: 0 },
-]
 
 function makeHistoryEntry(daysAgo: number, label: string): HistoryEntry {
   const date = new Date(Date.UTC(2026, 9, 1 - daysAgo, 18, 0, 0))

@@ -2,19 +2,19 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { CalendarClock, CalendarDays, Clock, FileText, Layers, Radio, Tv } from 'lucide-react'
+import { CalendarClock, CalendarDays, ClipboardList, Clock, Layers, Radio, Tv } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFleet } from '@/lib/fleet-store'
 import { formatPlanDate } from '@/lib/fleet-format'
 
-export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'colocacion'
+export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'incidencias'
 
 const TABS: { id: TabId; label: string; icon: typeof Layers }[] = [
   { id: 'patio', label: 'Patio', icon: Layers },
   { id: 'planeacion', label: 'Planeación', icon: CalendarClock },
   { id: 'supervisor', label: 'Supervisor', icon: Radio },
   { id: 'resumen', label: 'Resumen', icon: Tv },
-  { id: 'colocacion', label: 'Colocación', icon: FileText },
+  { id: 'incidencias', label: 'Incidencias', icon: ClipboardList },
 ]
 
 export function Header({

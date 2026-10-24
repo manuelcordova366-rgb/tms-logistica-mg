@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { CirclePlus, CloudUpload, FileSpreadsheet, History, Save } from 'lucide-react'
+import { CirclePlus, CloudUpload, FileSpreadsheet, Save } from 'lucide-react'
 import { loadFleetState, saveFleetState } from '@/app/actions/fleet'
 import { FleetProvider, newTripId, useFleet } from '@/lib/fleet-store'
 import { exportPatio, exportTrips } from '@/lib/fleet-exports'
@@ -15,10 +15,9 @@ import { ResumenView } from './resumen-view'
 import { PatioView } from './patio-view'
 import { PlaneacionView } from './planeacion-view'
 import { SupervisorView } from './supervisor-view'
-import { ColocacionView } from './colocacion-view'
+import { IncidenciasView } from './incidencias-view'
 import { UnitDialog } from './unit-dialog'
 import { TripDialog, type TripDialogState } from './trip-dialog'
-import { HistoryDialog } from './history-dialog'
 
 export function AppShell() {
   return (
@@ -34,7 +33,6 @@ function FleetApp() {
   const [saving, setSaving] = useState(false)
   const [unitDialog, setUnitDialog] = useState<{ unit: Unit | null } | null>(null)
   const [tripDialog, setTripDialog] = useState<TripDialogState | null>(null)
-  const [historyOpen, setHistoryOpen] = useState(false)
   const [toast, setToast] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const { dispatch } = fleet
@@ -122,6 +120,7 @@ function FleetApp() {
         trips: fleet.trips,
         history: [entry, ...fleet.history],
         planDate: fleet.planDate,
+        incidencias: fleet.incidencias,
       })
       notify('Día guardado: registros, cambios y ediciones sincronizados')
     } catch (failure) {
@@ -132,17 +131,10 @@ function FleetApp() {
   }
 
   const common = (
-    <>
-      <ToolbarButton tone="primary" onClick={() => void saveDay()} disabled={saving}>
-        <Save aria-hidden />
-        {saving ? 'Guardando…' : 'Guardar Día'}
-      </ToolbarButton>
-      <ToolbarButton tone="violet" onClick={() => setHistoryOpen(true)}>
-        <History aria-hidden />
-        Historial
-        <span className="rounded-full bg-violet px-1.5 font-mono text-[11px] text-foreground">{fleet.history.length}</span>
-      </ToolbarButton>
-    </>
+    <ToolbarButton tone="primary" onClick={() => void saveDay()} disabled={saving}>
+      <Save aria-hidden />
+      {saving ? 'Guardando…' : 'Guardar Día'}
+    </ToolbarButton>
   )
 
   const actions: Record<TabId, React.ReactNode> = {
@@ -186,7 +178,7 @@ function FleetApp() {
         </ToolbarButton>
       </>
     ),
-    colocacion: null,
+    incidencias: common,
   }
 
   return (
@@ -210,7 +202,7 @@ function FleetApp() {
           />
         )}
         {tab === 'supervisor' && <SupervisorView onEditTrip={onEditTrip} />}
-        {tab === 'colocacion' && <ColocacionView />}
+        {tab === 'incidencias' && <IncidenciasView />}
       </main>
 
       <footer className="border-t border-border bg-background/85 px-4 py-6 text-center text-xs text-muted-foreground backdrop-blur-md">
@@ -218,14 +210,13 @@ function FleetApp() {
         <span className="mx-2" aria-hidden>
           •
         </span>
-        Patio (En CD) | Planeación | Supervisor (Ruta) | Resumen General | Colocación
+        Patio (En CD) | Planeación | Supervisor (Ruta) | Resumen General | Rol de Incidencias
       </footer>
 
       <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" tabIndex={-1} aria-hidden onChange={handleImport} />
 
       <UnitDialog unit={unitDialog?.unit ?? null} open={unitDialog !== null} onOpenChange={(o) => !o && setUnitDialog(null)} />
       <TripDialog state={tripDialog} onOpenChange={(o) => !o && setTripDialog(null)} />
-      <HistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
 
       <div role="status" aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50">
         {toast && (

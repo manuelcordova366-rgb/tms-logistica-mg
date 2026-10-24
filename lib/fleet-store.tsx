@@ -7,6 +7,8 @@ import {
   SEED_UNITS,
   type FleetData,
   type HistoryEntry,
+  type IncidenciaRegistro,
+  type IncidenciaTipo,
   type PatioStatus,
   type SupervisorStatus,
   type Trip,
@@ -18,6 +20,8 @@ interface FleetState {
   trips: Trip[]
   history: HistoryEntry[]
   planDate: string
+  /** Rol de incidencias: `"<fecha ISO>|<operador>"` → incidencia del día. */
+  incidencias: IncidenciaRegistro
 }
 
 type Action =
@@ -34,6 +38,7 @@ type Action =
   | { type: 'restore'; id: string }
   | { type: 'hydrate'; data: FleetData }
   | { type: 'importUnits'; units: Unit[] }
+  | { type: 'setIncidencia'; key: string; tipo: IncidenciaTipo }
 
 function reducer(state: FleetState, action: Action): FleetState {
   switch (action.type) {
@@ -96,7 +101,15 @@ function reducer(state: FleetState, action: Action): FleetState {
     case 'saveDay':
       return { ...state, history: [action.entry, ...state.history] }
     case 'hydrate':
-      return { units: action.data.units, trips: action.data.trips, history: action.data.history, planDate: action.data.planDate }
+      return {
+        units: action.data.units,
+        trips: action.data.trips,
+        history: action.data.history,
+        planDate: action.data.planDate,
+        incidencias: action.data.incidencias ?? {},
+      }
+    case 'setIncidencia':
+      return { ...state, incidencias: { ...state.incidencias, [action.key]: action.tipo } }
     case 'importUnits': {
       const byEco = new Map(state.units.map((u) => [u.eco, u]))
       for (const unit of action.units) byEco.set(unit.eco, unit)
@@ -121,6 +134,7 @@ function useFleetValue() {
     trips: SEED_TRIPS,
     history: SEED_HISTORY,
     planDate: '2026-10-01',
+    incidencias: {},
   })
 
   const tripsByEco = useMemo(() => {
