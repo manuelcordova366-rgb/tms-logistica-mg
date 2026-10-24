@@ -2,5 +2,31 @@
   "previewPort": 3000,
   "healthPath": "/",
   "startCommand": "docker compose -f docker-compose.base44.yml up -d",
-  "secrets": []
+  "secrets": [
+    {
+      "name": "GOOGLE_CLIENT_ID",
+      "description": "Google OAuth client ID (Google Cloud Console → APIs & Services → Credentials). Optional for booting; without it the Google sign-in button is not shown.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "GOOGLE_CLIENT_SECRET",
+      "description": "Google OAuth client secret for the same OAuth client. Optional for booting; required for Google sign-in to work.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "MICROSOFT_CLIENT_ID",
+      "description": "Microsoft Entra ID application (client) ID (Entra admin center → App registrations → Overview). Optional for booting; without it the Outlook sign-in button is not shown.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "MICROSOFT_CLIENT_SECRET",
+      "description": "Microsoft Entra ID client secret value (Certificates & secrets → New client secret). Optional for booting; required for Outlook sign-in to work.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "MICROSOFT_TENANT_ID",
+      "description": "Microsoft Entra tenant ID (Directory ID); defaults to 'common' (any work/school account) when unset.",
+      "requiredAtBoot": false
+    }
+  ]
 }
