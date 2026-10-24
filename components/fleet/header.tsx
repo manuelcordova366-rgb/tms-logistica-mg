@@ -1,24 +1,38 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { CalendarDays, Clock, FileText, Layers, Radio, CalendarClock, Tv } from 'lucide-react'
+import { CalendarClock, CalendarDays, Clock, FileText, Layers, LogOut, Radio, Tv, UserRound, UsersRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { authClient } from '@/lib/auth-client'
+import { ROLE_LABEL, type AppUser } from '@/lib/auth-shared'
 import { useFleet } from '@/lib/fleet-store'
 import { formatPlanDate } from '@/lib/fleet-format'
 
-export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'colocacion'
+export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'colocacion' | 'usuarios'
 
-const TABS: { id: TabId; label: string; icon: typeof Layers }[] = [
+const TABS: { id: TabId; label: string; icon: typeof Layers; adminOnly?: boolean }[] = [
   { id: 'patio', label: 'Patio', icon: Layers },
   { id: 'planeacion', label: 'Planeación', icon: CalendarClock },
   { id: 'supervisor', label: 'Supervisor', icon: Radio },
   { id: 'resumen', label: 'Resumen', icon: Tv },
   { id: 'colocacion', label: 'Colocación', icon: FileText },
+  { id: 'usuarios', label: 'Usuarios', icon: UsersRound, adminOnly: true },
 ]
 
-export function Header({ tab, onTabChange, actions }: { tab: TabId; onTabChange: (tab: TabId) => void; actions: ReactNode }) {
+export function Header({
+  tab,
+  onTabChange,
+  actions,
+  user,
+}: {
+  tab: TabId
+  onTabChange: (tab: TabId) => void
+  actions: ReactNode
+  user: AppUser
+}) {
   const { units } = useFleet()
+  const tabs = TABS.filter((entry) => !entry.adminOnly || user.role === 'admin')
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
@@ -28,25 +42,21 @@ export function Header({ tab, onTabChange, actions }: { tab: TabId; onTabChange:
             <div className="flex h-12 w-[72px] items-center justify-center overflow-hidden rounded-lg bg-white p-1">
               <Image src="/logistica-mg-logo-mark.png" alt="Logística M&G TMS" width={525} height={355} className="h-auto w-full" priority />
             </div>
-            <h1 className="flex flex-wrap items-center gap-2">
-              <span className="flex flex-col leading-tight">
-                <span className="text-lg font-bold tracking-tight">Control de Flota</span>
-                <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Software de monitoreo de unidades</span>
-              </span>
-              <span className="rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-primary">
-                CD VILLAHERMOSA
-              </span>
+            <h1 className="flex flex-col leading-tight">
+              <span className="text-lg font-bold tracking-tight">Control de Flota</span>
+              <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Software de monitoreo de unidades</span>
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <PlanDatePicker />
             <LiveClock />
+            <UserChip user={user} />
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav aria-label="Secciones" className="flex overflow-x-auto rounded-xl border border-border bg-card/70 p-1 scrollbar-thin">
-            {TABS.map(({ id, label, icon: Icon }) => {
+            {tabs.map(({ id, label, icon: Icon }) => {
               const active = tab === id
               return (
                 <button
@@ -77,33 +87,56 @@ export function Header({ tab, onTabChange, actions }: { tab: TabId; onTabChange:
   )
 }
 
-function PlanDatePicker() {
-  const { planDate, dispatch } = useFleet()
-  const inputRef = useRef<HTMLInputElement>(null)
+function UserChip({ user }: { user: AppUser }) {
+  const [busy, setBusy] = useState(false)
 
   return (
-    <div className="relative">
+    <div className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card/70 px-3 text-xs">
+      <UserRound className="size-4 text-primary" aria-hidden />
+      <span className="max-w-32 truncate font-semibold">{user.name}</span>
+      <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary uppercase">
+        {ROLE_LABEL[user.role]}
+      </span>
       <button
         type="button"
-        onClick={() => inputRef.current?.showPicker?.()}
-        className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 font-mono text-xs text-primary shadow-md shadow-primary/10 hover:bg-primary/15"
+        aria-label="Cerrar sesión"
+        title="Cerrar sesión"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true)
+          await authClient.signOut()
+          window.location.reload()
+        }}
+        className="inline-flex size-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-danger disabled:opacity-50"
       >
-        <CalendarDays className="size-4" aria-hidden />
-        <span>
-          Plan: <strong className="text-foreground">{formatPlanDate(planDate)}</strong>
-        </span>
+        <LogOut className="size-3.5" aria-hidden />
       </button>
+    </div>
+  )
+}
+
+function PlanDatePicker() {
+  const { planDate, dispatch } = useFleet()
+
+  return (
+    <label className="relative inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 font-mono text-xs text-primary shadow-md shadow-primary/10 hover:bg-primary/15">
+      <CalendarDays className="size-4" aria-hidden />
+      <span>
+        Plan: <strong className="text-foreground">{formatPlanDate(planDate)}</strong>
+      </span>
+      {/*
+        The date input itself covers the chip: a real click on it opens the native picker.
+        Calling `showPicker()` instead throws a cross-origin SecurityError inside the preview
+        iframe, which is what the issue badge was reporting.
+      */}
       <input
-        ref={inputRef}
         type="date"
-        aria-hidden
         aria-label="Fecha del plan"
         value={planDate}
         onChange={(e) => e.target.value && dispatch({ type: 'setPlanDate', date: e.target.value })}
-        className="pointer-events-none absolute inset-0 opacity-0"
-        tabIndex={-1}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
       />
-    </div>
+    </label>
   )
 }
 

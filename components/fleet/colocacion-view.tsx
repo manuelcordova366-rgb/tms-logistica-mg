@@ -22,7 +22,11 @@ const EMPTY_DAY: DayData = {
   observaciones: 'Operación en curso sin novedades extraordinarias reportadas en CEDIS Villahermosa.',
 }
 
-export function ColocacionView() {
+/**
+ * `canEdit` is false for supervisors: they keep the four operational sections
+ * (patio, planeación, supervisor, resumen) and read the placement plan here only.
+ */
+export function ColocacionView({ canEdit = true }: { canEdit?: boolean }) {
   const { planDate } = useFleet()
   const [date, setDate] = useState(planDate)
   const [days, setDays] = useState<Record<string, DayData>>({})
@@ -111,26 +115,35 @@ export function ColocacionView() {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setDays((prev) => ({ ...prev, [date]: day }))
-              setSaved((prev) => new Set(prev).add(date))
-              flash('Día guardado')
-            }}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 text-sm font-semibold text-success"
-          >
-            <Save className="size-4" aria-hidden />
-            Guardar Día
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-sm font-semibold"
-          >
-            <Pencil className="size-4" aria-hidden />
-            Editar Datos
-          </button>
+          {!canEdit && (
+            <span className="inline-flex h-9 items-center rounded-lg border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground">
+              Solo lectura para supervisores
+            </span>
+          )}
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setDays((prev) => ({ ...prev, [date]: day }))
+                  setSaved((prev) => new Set(prev).add(date))
+                  flash('Día guardado')
+                }}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 text-sm font-semibold text-success"
+              >
+                <Save className="size-4" aria-hidden />
+                Guardar Día
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-sm font-semibold"
+              >
+                <Pencil className="size-4" aria-hidden />
+                Editar Datos
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={handleCopy}

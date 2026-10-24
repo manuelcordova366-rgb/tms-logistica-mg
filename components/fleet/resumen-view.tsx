@@ -157,7 +157,7 @@ export function ResumenView() {
                 <th scope="col" className="px-5 py-4 font-semibold">Viaje</th>
                 <th scope="col" className="px-4 py-4 font-semibold">Eco unidad</th>
                 <th scope="col" className="px-4 py-4 font-semibold">Operador</th>
-                <th scope="col" className="px-4 py-4 font-semibold"># Carga</th>
+                <th scope="col" className="px-4 py-4 font-semibold">Producto</th>
                 <th scope="col" className="px-4 py-4 font-semibold">Destino &amp; ruta</th>
                 <th scope="col" className="px-4 py-4 text-center font-semibold">Salida</th>
                 <th scope="col" className="px-4 py-4 text-center font-semibold">ETA</th>

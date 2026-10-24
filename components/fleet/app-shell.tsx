@@ -1,11 +1,14 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { CirclePlus, CloudUpload, FileSpreadsheet, History, Save } from 'lucide-react'
+import { loadFleetState, saveFleetState } from '@/app/actions/fleet'
+import type { AppUser } from '@/lib/auth-shared'
 import { FleetProvider, newTripId, useFleet } from '@/lib/fleet-store'
 import { exportPatio, exportTrips } from '@/lib/fleet-exports'
 import { parseCsv } from '@/lib/fleet-format'
 import type { Trip, Unit } from '@/lib/fleet-data'
+import { BrandBackdrop } from './brand-backdrop'
 import { Header, type TabId } from './header'
 import { NetworkBackground } from './network-background'
 import { ToolbarButton } from './primitives'
@@ -14,31 +17,50 @@ import { PatioView } from './patio-view'
 import { PlaneacionView } from './planeacion-view'
 import { SupervisorView } from './supervisor-view'
 import { ColocacionView } from './colocacion-view'
+import { UsersView } from './users-view'
 import { UnitDialog } from './unit-dialog'
 import { TripDialog, type TripDialogState } from './trip-dialog'
 import { HistoryDialog } from './history-dialog'
 
-export function AppShell() {
+export function AppShell({ user }: { user: AppUser }) {
   return (
     <FleetProvider>
-      <FleetApp />
+      <FleetApp user={user} />
     </FleetProvider>
   )
 }
 
-function FleetApp() {
+function FleetApp({ user }: { user: AppUser }) {
   const fleet = useFleet()
+  const isAdmin = user.role === 'admin'
   const [tab, setTab] = useState<TabId>('resumen')
+  const [saving, setSaving] = useState(false)
   const [unitDialog, setUnitDialog] = useState<{ unit: Unit | null } | null>(null)
   const [tripDialog, setTripDialog] = useState<TripDialogState | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [toast, setToast] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const { dispatch } = fleet
 
   const notify = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(''), 2800)
   }
+
+  // Pick up the state saved with "Guardar Día" in a previous session.
+  const hydrated = useRef(false)
+  useEffect(() => {
+    if (hydrated.current) return
+    hydrated.current = true
+    void (async () => {
+      try {
+        const saved = await loadFleetState()
+        if (saved) dispatch({ type: 'hydrate', data: saved.data })
+      } catch {
+        // No saved day yet (or it cannot be read): keep the seed data on screen.
+      }
+    })()
+  }, [dispatch])
 
   const onNewTrip = (eco?: string) => setTripDialog({ trip: null, defaultEco: eco })
   const onEditTrip = (trip: Trip) => setTripDialog({ trip })
@@ -69,7 +91,7 @@ function FleetApp() {
           eco,
           operador: (r.operador || 'POR ASIGNAR').toUpperCase(),
           turno: r.turno || 'M1',
-          carga: (r.carga || r['# carga'] || '').toUpperCase(),
+          carga: (r.producto || r.carga || r['# carga'] || '').toUpperCase(),
           destino,
           entregas: (r.entregas || '').split('|').map((s) => s.trim()).filter(Boolean),
           kind,
@@ -93,16 +115,30 @@ function FleetApp() {
     notify(`${trips.length} viajes importados`)
   }
 
-  const saveDay = () => {
-    fleet.saveDay()
-    notify('Día guardado en el historial')
+  // "Guardar Día" stores every registration, change and edition made so far.
+  const saveDay = async () => {
+    const entry = fleet.saveDay()
+    setSaving(true)
+    try {
+      await saveFleetState({
+        units: fleet.units,
+        trips: fleet.trips,
+        history: [entry, ...fleet.history],
+        planDate: fleet.planDate,
+      })
+      notify('Día guardado: registros, cambios y ediciones sincronizados')
+    } catch (failure) {
+      notify(failure instanceof Error ? failure.message : 'No se pudo guardar el día')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const common = (
     <>
-      <ToolbarButton tone="primary" onClick={saveDay}>
+      <ToolbarButton tone="primary" onClick={() => void saveDay()} disabled={saving}>
         <Save aria-hidden />
-        Guardar Día
+        {saving ? 'Guardando…' : 'Guardar Día'}
       </ToolbarButton>
       <ToolbarButton tone="violet" onClick={() => setHistoryOpen(true)}>
         <History aria-hidden />
@@ -154,12 +190,14 @@ function FleetApp() {
       </>
     ),
     colocacion: null,
+    usuarios: null,
   }
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
+      <BrandBackdrop />
       <NetworkBackground />
-      <Header tab={tab} onTabChange={setTab} actions={actions[tab]} />
+      <Header tab={tab} onTabChange={setTab} actions={actions[tab]} user={user} />
 
       <main className="flex-1 px-4 py-5 md:px-5">
         {tab === 'resumen' && <ResumenView />}
@@ -176,7 +214,8 @@ function FleetApp() {
           />
         )}
         {tab === 'supervisor' && <SupervisorView onEditTrip={onEditTrip} />}
-        {tab === 'colocacion' && <ColocacionView />}
+        {tab === 'colocacion' && <ColocacionView canEdit={isAdmin} />}
+        {tab === 'usuarios' && isAdmin && <UsersView />}
       </main>
 
       <footer className="border-t border-border bg-background/85 px-4 py-6 text-center text-xs text-muted-foreground backdrop-blur-md">

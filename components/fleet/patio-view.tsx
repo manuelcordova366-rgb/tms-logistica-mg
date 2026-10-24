@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { CircleCheck, CircleArrowRight, CirclePlus, Package, Pencil, Trash2, UserRound, Wrench, Route } from 'lucide-react'
+import { useRef, useState, type ChangeEvent } from 'react'
+import { CircleCheck, CircleArrowRight, CirclePlus, CloudUpload, FileDown, Package, Pencil, Trash2, UserRound, Wrench, Route } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isUnitBusy, useFleet } from '@/lib/fleet-store'
-import { FLEET_GROUP_LABEL, fleetGroupOf, type FleetGroup, type Trip, type Unit } from '@/lib/fleet-data'
+import { normalizePatioStatus, normalizeUnitKind, PATIO_STATUS_LABEL, type Trip, type Unit } from '@/lib/fleet-data'
+import { downloadCsv, parseCsv } from '@/lib/fleet-format'
 import { EcoBadge, FilterChip, IconButton, Panel, SearchField } from './primitives'
 
 type Column = 'disponible' | 'ruta' | 'colocado' | 'cargado' | 'taller'
@@ -26,10 +27,11 @@ export function PatioView({
   onEditUnit: (unit: Unit) => void
   onNewTrip: (eco: string) => void
 }) {
-  const { units, tripsByEco, dispatch } = useFleet()
+  const { units, tripsByEco, unitByEco, dispatch } = useFleet()
   const [query, setQuery] = useState('')
   const [assign, setAssign] = useState<'all' | 'busy' | 'free'>('all')
-  const [group, setGroup] = useState<FleetGroup | 'all'>('all')
+  const [notice, setNotice] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const columnOf = (u: Unit): Column => (isUnitBusy(u, tripsByEco) ? 'cargado' : u.patioStatus)
   const busyCount = units.filter((u) => isUnitBusy(u, tripsByEco)).length
@@ -39,7 +41,6 @@ export function PatioView({
     const busy = isUnitBusy(u, tripsByEco)
     if (assign === 'busy' && !busy) return false
     if (assign === 'free' && columnOf(u) !== 'disponible') return false
-    if (group !== 'all' && fleetGroupOf(u.kind) !== group) return false
     if (query) {
       const trips = tripsByEco.get(u.eco) ?? []
       const hay = [u.eco, u.placas, u.kind, ...trips.flatMap((t) => [String(t.folio), t.operador, t.destino])].join(' ').toLowerCase()
@@ -47,6 +48,47 @@ export function PatioView({
     }
     return true
   })
+
+  /** Simple CSV template so a whole shift of units can be loaded at once. */
+  const downloadTemplate = () =>
+    downloadCsv('plantilla-patio.csv', ['ECO', 'PLACAS', 'TIPO', 'ESTATUS'], [
+      ['3153', 'CV4372F', 'SENCILLO', PATIO_STATUS_LABEL.disponible],
+      ['5035', '73FA3F', 'TRACTO / FULL', PATIO_STATUS_LABEL.taller],
+      ['3426', '', 'SENCILLO', PATIO_STATUS_LABEL.colocado],
+    ])
+
+  async function handleImport(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!/\.csv$/i.test(file.name)) {
+      setNotice('Guarda la plantilla de Excel como CSV (.csv) para subirla')
+      return
+    }
+    const rows = parseCsv(await file.text())
+    const imported: Unit[] = rows
+      .map((row) => {
+        const eco = (row.eco || row.unidad || '').trim().toUpperCase()
+        if (!eco) return null
+        const current = unitByEco.get(eco)
+        return {
+          eco,
+          placas: (row.placas || row.placa || '').trim().toUpperCase(),
+          // The form no longer captures capacity: keep whatever the unit already had.
+          capacidad: current?.capacidad ?? 18,
+          kind: normalizeUnitKind(row.tipo ?? ''),
+          patioStatus: normalizePatioStatus(row.estatus ?? row.status ?? ''),
+        } satisfies Unit
+      })
+      .filter((u): u is NonNullable<typeof u> => u !== null)
+
+    if (imported.length === 0) {
+      setNotice('No se encontraron filas válidas: la plantilla necesita la columna ECO')
+      return
+    }
+    dispatch({ type: 'importUnits', units: imported })
+    setNotice(`${imported.length} unidades cargadas desde la plantilla`)
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -72,17 +114,6 @@ export function PatioView({
           </FilterChip>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Tipo:</span>
-          <FilterChip active={group === 'all'} onClick={() => setGroup('all')}>
-            Todos
-          </FilterChip>
-          {(Object.keys(FLEET_GROUP_LABEL) as FleetGroup[]).map((g) => (
-            <FilterChip key={g} active={group === g} onClick={() => setGroup(g)}>
-              {FLEET_GROUP_LABEL[g]} ({units.filter((u) => fleetGroupOf(u.kind) === g).length})
-            </FilterChip>
-          ))}
-        </div>
-        <div>
           <button
             type="button"
             onClick={onNewUnit}
@@ -91,7 +122,29 @@ export function PatioView({
             <CirclePlus className="size-4" aria-hidden />
             Registrar Unidad en Patio
           </button>
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-primary hover:bg-primary/20"
+          >
+            <FileDown className="size-4" aria-hidden />
+            Plantilla
+          </button>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-secondary px-4 text-sm font-semibold"
+          >
+            <CloudUpload className="size-4" aria-hidden />
+            Subir Plantilla
+          </button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" tabIndex={-1} aria-hidden onChange={handleImport} />
         </div>
+        {notice && (
+          <p role="status" className="text-sm font-semibold text-success">
+            {notice}
+          </p>
+        )}
       </Panel>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -186,7 +239,7 @@ function UnitCard({
       <dl className="flex flex-col gap-1 text-sm">
         <div className="flex gap-1">
           <dt className="font-bold">Placas:</dt>
-          <dd className="text-secondary-foreground">{unit.placas}</dd>
+          <dd className="text-secondary-foreground">{unit.placas || '—'}</dd>
         </div>
         <div className="flex gap-1">
           <dt className="font-bold">Capacidad:</dt>

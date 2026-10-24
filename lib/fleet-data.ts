@@ -2,7 +2,31 @@ export type UnitKind = 'Camioneta' | 'Rango Medio' | 'Sencillo' | 'Tracto / Full
 export type FleetGroup = 'camionetas' | 'rabones' | 'tractos'
 export type PatioStatus = 'disponible' | 'ruta' | 'colocado' | 'taller'
 export type TripKind = 'LOCAL' | 'FORÁNEO'
-export type PlanStatus = 'CARGADO' | 'COLOCADO' | 'PENDIENTE' | 'NO SE CUBRE'
+export type PlanStatus =
+  | 'CARGADO'
+  | 'COLOCADO'
+  | 'PENDIENTE'
+  | 'NO SE CUBRE'
+  | 'CANCELADO'
+  | 'REPROGRAMADO'
+  | 'CONTINUACIÓN'
+  | 'ANALIZANDO'
+  | 'HORAS DOT'
+  | 'POR SALIR'
+
+/** Options of the trip form's "Estatus planeación" selector. */
+export const PLAN_STATUSES: PlanStatus[] = [
+  'CARGADO',
+  'COLOCADO',
+  'PENDIENTE',
+  'NO SE CUBRE',
+  'CANCELADO',
+  'REPROGRAMADO',
+  'CONTINUACIÓN',
+  'ANALIZANDO',
+  'HORAS DOT',
+  'POR SALIR',
+]
 export type SupervisorStatus =
   | 'CARGADO'
   | 'EN RUTA'
@@ -59,6 +83,14 @@ export interface HistoryEntry {
   snapshot: FleetSnapshot
 }
 
+/** Everything that is persisted for a plan day (see `app/actions/fleet.ts`). */
+export interface FleetData {
+  units: Unit[]
+  trips: Trip[]
+  history: HistoryEntry[]
+  planDate: string
+}
+
 export function fleetGroupOf(kind: UnitKind): FleetGroup {
   if (kind === 'Camioneta') return 'camionetas'
   if (kind === 'Rango Medio') return 'rabones'
@@ -69,6 +101,40 @@ export const FLEET_GROUP_LABEL: Record<FleetGroup, string> = {
   camionetas: 'Camionetas',
   rabones: 'Rabones',
   tractos: 'Tractos / Fulles',
+}
+
+/** Kinds offered when a unit is registered by hand. */
+export const UNIT_KINDS: UnitKind[] = ['Sencillo', 'Tracto / Full']
+
+export const PATIO_STATUS_LABEL: Record<PatioStatus, string> = {
+  disponible: 'Disponible en Patio',
+  ruta: 'Ruta asignada',
+  colocado: 'Colocado p/ Carga',
+  taller: 'Taller / Mtto',
+}
+
+const normalize = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+/** Tolerant readers for the bulk-upload template: accept the values shown in the UI. */
+export function normalizeUnitKind(value: string): UnitKind {
+  const v = normalize(value)
+  if (v.includes('tract') || v.includes('full')) return 'Tracto / Full'
+  if (v.includes('rango') || v.includes('rabon') || v.includes('medio')) return 'Rango Medio'
+  if (v.includes('camioneta')) return 'Camioneta'
+  return 'Sencillo'
+}
+
+export function normalizePatioStatus(value: string): PatioStatus {
+  const v = normalize(value)
+  if (v.includes('taller') || v.includes('mtto') || v.includes('mantenimiento')) return 'taller'
+  if (v.includes('ruta') || v.includes('asignad')) return 'ruta'
+  if (v.includes('colocad')) return 'colocado'
+  return 'disponible'
 }
 
 const u = (eco: string, placas: string, capacidad: number, kind: UnitKind, patioStatus: PatioStatus = 'disponible'): Unit => ({

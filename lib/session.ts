@@ -3,9 +3,11 @@ import { headers } from 'next/headers'
 import { eq } from 'drizzle-orm'
 import { auth, type AppUser } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { ensureSchema } from '@/lib/db/ensure-schema'
 import { user } from '@/lib/db/schema'
 
 export async function getCurrentUser(): Promise<AppUser | null> {
+  await ensureSchema()
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) return null
   // Read role/status straight from the DB so approvals take effect immediately.

@@ -9,7 +9,7 @@ import type { AppUser } from '@/lib/auth'
 export type ManagedUser = AppUser & { createdAt: string }
 
 const STATUSES = ['pending', 'approved', 'rejected'] as const
-const ROLES = ['admin', 'user'] as const
+const ROLES = ['admin', 'supervisor'] as const
 
 export async function listUsers(): Promise<ManagedUser[]> {
   await requireAdmin()

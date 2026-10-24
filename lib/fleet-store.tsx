@@ -5,6 +5,7 @@ import {
   SEED_HISTORY,
   SEED_TRIPS,
   SEED_UNITS,
+  type FleetData,
   type HistoryEntry,
   type PatioStatus,
   type SupervisorStatus,
@@ -31,6 +32,8 @@ type Action =
   | { type: 'setSupStatus'; id: string; status: SupervisorStatus; time: string }
   | { type: 'saveDay'; entry: HistoryEntry }
   | { type: 'restore'; id: string }
+  | { type: 'hydrate'; data: FleetData }
+  | { type: 'importUnits'; units: Unit[] }
 
 function reducer(state: FleetState, action: Action): FleetState {
   switch (action.type) {
@@ -92,6 +95,13 @@ function reducer(state: FleetState, action: Action): FleetState {
       }
     case 'saveDay':
       return { ...state, history: [action.entry, ...state.history] }
+    case 'hydrate':
+      return { units: action.data.units, trips: action.data.trips, history: action.data.history, planDate: action.data.planDate }
+    case 'importUnits': {
+      const byEco = new Map(state.units.map((u) => [u.eco, u]))
+      for (const unit of action.units) byEco.set(unit.eco, unit)
+      return { ...state, units: [...byEco.values()] }
+    }
     case 'restore': {
       const entry = state.history.find((h) => h.id === action.id)
       if (!entry) return state
@@ -129,16 +139,16 @@ function useFleetValue() {
   const saveDay = useCallback(
     (label = 'Cierre de turno') => {
       const now = new Date()
-      dispatch({
-        type: 'saveDay',
-        entry: {
-          id: `hist-${now.getTime()}`,
-          savedAt: now.toISOString(),
-          planDate: state.planDate,
-          label,
-          snapshot: { units: state.units, trips: state.trips },
-        },
-      })
+      const entry: HistoryEntry = {
+        id: `hist-${now.getTime()}`,
+        savedAt: now.toISOString(),
+        planDate: state.planDate,
+        label,
+        snapshot: { units: state.units, trips: state.trips },
+      }
+      dispatch({ type: 'saveDay', entry })
+      // Returned so the caller can persist the very same snapshot it just stored.
+      return entry
     },
     [state.planDate, state.units, state.trips],
   )
