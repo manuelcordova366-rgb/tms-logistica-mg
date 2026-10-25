@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { newTripId, useFleet } from '@/lib/fleet-store'
-import type { PlanStatus, SupervisorStatus, Trip, TripKind } from '@/lib/fleet-data'
+import { PLAN_STATUSES, type PlanStatus, type SupervisorStatus, type Trip, type TripKind } from '@/lib/fleet-data'
 import { Field, NativeSelect, inputClass } from './form-fields'
 
-const PLAN_STATUSES: PlanStatus[] = ['CARGADO', 'COLOCADO', 'PENDIENTE', 'NO SE CUBRE']
 const SUP_STATUSES: SupervisorStatus[] = [
   'CARGADO',
   'EN RUTA',
@@ -46,10 +45,9 @@ export function TripDialog({
 }
 
 function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => void }) {
-  const { dispatch, units, trips } = useFleet()
+  const { dispatch, units } = useFleet()
   const [error, setError] = useState('')
   const trip = state.trip
-  const nextFolio = Math.max(0, ...trips.map((t) => t.folio ?? 0)) + 1
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -69,6 +67,7 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
         id: trip?.id ?? newTripId(),
         folio,
         eco,
+        pipa: get('pipa'),
         operador: get('operador').toUpperCase() || 'POR ASIGNAR',
         turno: get('turno') || 'M1',
         carga: get('carga').toUpperCase(),
@@ -78,11 +77,9 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
           .map((s) => s.trim())
           .filter(Boolean),
         kind: get('kind') as TripKind,
-        cluster: get('cluster').toUpperCase(),
         salida: get('salida'),
         tiempoEst: get('tiempoEst') || '—',
         eta: get('eta'),
-        rampa: get('rampa'),
         planStatus: get('planStatus') as PlanStatus,
         supStatus: get('supStatus') as SupervisorStatus,
         regresaManana: d.get('regresaManana') === 'on',
@@ -97,11 +94,12 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle className="text-lg font-bold">{trip ? `Editar Viaje #${trip.folio ?? '—'}` : 'Nuevo Viaje'}</DialogTitle>
-        <DialogDescription>Asignación de unidad, operador, carga y destino del embarque.</DialogDescription>
+        <DialogDescription>Asignación de unidad, operador, producto y destino del embarque.</DialogDescription>
       </DialogHeader>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <Field label="Folio viaje" htmlFor="t-folio">
-          <Input id="t-folio" name="folio" type="number" min={1} defaultValue={trip ? (trip.folio ?? '') : nextFolio} className={inputClass} />
+          {/* Editable by hand: no folio is suggested automatically. */}
+          <Input id="t-folio" name="folio" type="number" min={1} placeholder="Escribe el folio" defaultValue={trip?.folio ?? ''} className={inputClass} />
         </Field>
         <Field label="Unidad (ECO)" htmlFor="t-eco">
           <NativeSelect id="t-eco" name="eco" defaultValue={trip?.eco ?? state.defaultEco ?? ''}>
@@ -113,8 +111,12 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
             ))}
           </NativeSelect>
         </Field>
-        <Field label="# Carga" htmlFor="t-carga">
-          <Input id="t-carga" name="carga" defaultValue={trip?.carga} placeholder="CS00000000" className={inputClass} />
+        <Field label="Número de pipa" htmlFor="t-pipa">
+          {/* Se escribe a mano: la pipa no forma parte del registro de patio. */}
+          <Input id="t-pipa" name="pipa" defaultValue={trip?.pipa} placeholder="Escribir número de pipa" className={inputClass} />
+        </Field>
+        <Field label="Producto" htmlFor="t-carga">
+          <Input id="t-carga" name="carga" defaultValue={trip?.carga} className={inputClass} />
         </Field>
         <Field label="Operador" htmlFor="t-op" className="col-span-2">
           <Input id="t-op" name="operador" defaultValue={trip?.operador === 'POR ASIGNAR' ? '' : trip?.operador} className={inputClass} />
@@ -131,14 +133,8 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
             <option value="FORÁNEO">FORÁNEO</option>
           </NativeSelect>
         </Field>
-        <Field label="Clóster" htmlFor="t-cluster">
-          <Input id="t-cluster" name="cluster" defaultValue={trip?.cluster ?? ''} placeholder="Escribir clóster" className={inputClass} />
-        </Field>
         <Field label="Salida" htmlFor="t-salida">
           <Input id="t-salida" name="salida" type="time" defaultValue={trip?.salida} className={inputClass} />
-        </Field>
-        <Field label="Cajón / Rampa" htmlFor="t-rampa">
-          <Input id="t-rampa" name="rampa" defaultValue={trip?.rampa} className={inputClass} />
         </Field>
         <Field label="Tiempo est." htmlFor="t-test">
           <Input id="t-test" name="tiempoEst" defaultValue={trip?.tiempoEst === '—' ? '' : trip?.tiempoEst} placeholder="2h 30m" className={inputClass} />

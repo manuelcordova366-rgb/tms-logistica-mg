@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+@custom-variant data-open (&[data-open]);
+@custom-variant data-closed (&[data-closed]);
+
+:root {
+  --radius: 0.75rem;
+
+  /* Brand palette: azules y verde del logotipo de Logística M&G */
+  --brand-navy: #0a3767;
+  --brand-blue: #0b5a96;
+  --brand-sky: #77c8e7;
+  --brand-teal: #2b9788;
+
+  /* Panel / dashboard palette (consola de operación en azul oscuro de la marca) */
+  --background: #051f3d;
+  --foreground: #e9f2fb;
+  --card: #0a2e56;
+  --card-foreground: #e9f2fb;
+  --popover: #0c3563;
+  --popover-foreground: #e9f2fb;
+  --primary: #77c8e7;
+  --primary-foreground: #04182e;
+  --secondary: #113a68;
+  --secondary-foreground: #c7dcf2;
+  --muted: #0d2f56;
+  --muted-foreground: #93b6d6;
+  --accent: #16457a;
+  --accent-foreground: #e9f2fb;
+  --destructive: #f87171;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #48b376;
+  --violet: #a78bfa;
+  --border: #1d5288;
+  --input: #0f3459;
+  --ring: #77c8e7;
+
+  /* Sheet palette: the light, printable report (colocacion-report) */
+  --sheet: #ffffff;
+  --sheet-foreground: #0f172a;
+  --sheet-muted: #eef2f7;
+  --sheet-navy: #10265c;
+  --sheet-green: #12833f;
+  --sheet-green-soft: #e7f6ec;
+  --sheet-magenta: #c2185b;
+  --sheet-purple: #6d28d9;
+  --sheet-teal: #0f766e;
+}
+
+@theme inline {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-violet: var(--violet);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-sky: var(--brand-sky);
+  --color-brand-teal: var(--brand-teal);
+
+  --color-sheet: var(--sheet);
+  --color-sheet-foreground: var(--sheet-foreground);
+  --color-sheet-muted: var(--sheet-muted);
+  --color-sheet-navy: var(--sheet-navy);
+  --color-sheet-green: var(--sheet-green);
+  --color-sheet-green-soft: var(--sheet-green-soft);
+  --color-sheet-magenta: var(--sheet-magenta);
+  --color-sheet-purple: var(--sheet-purple);
+  --color-sheet-teal: var(--sheet-teal);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}

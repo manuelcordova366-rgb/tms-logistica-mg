@@ -5,10 +5,10 @@ import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, CloudUpload, F
 import { cn } from '@/lib/utils'
 import { useFleet } from '@/lib/fleet-store'
 import { formatPlanDate } from '@/lib/fleet-format'
-import type { Trip, Unit } from '@/lib/fleet-data'
-import { ClusterTag, EcoBadge, EmptyRow, FilterChip, IconButton, KindTag, Panel, PlanChip, SearchField, StatusPill, type PillTone } from './primitives'
+import type { PlanStatus, Trip, Unit } from '@/lib/fleet-data'
+import { EcoBadge, EmptyRow, FilterChip, IconButton, KindTag, Panel, PlanChip, SearchField, StatusPill, type PillTone } from './primitives'
 
-type RowStatus = 'CARGADO' | 'COLOCADO' | 'PENDIENTE' | 'NO SE CUBRE' | 'EN TALLER' | 'SIN UNIDAD'
+type RowStatus = PlanStatus | 'EN TALLER' | 'SIN UNIDAD'
 
 interface PlanRow {
   key: string
@@ -23,6 +23,12 @@ const STATUS_TONE: Record<RowStatus, PillTone> = {
   COLOCADO: 'primary',
   PENDIENTE: 'muted',
   'NO SE CUBRE': 'danger',
+  CANCELADO: 'danger',
+  REPROGRAMADO: 'warning-outline',
+  CONTINUACIÓN: 'violet',
+  ANALIZANDO: 'primary',
+  'HORAS DOT': 'warning-outline',
+  'POR SALIR': 'success',
   'EN TALLER': 'danger',
   'SIN UNIDAD': 'warning-outline',
 }
@@ -36,7 +42,7 @@ const FILTERS: { id: RowStatus; label: string }[] = [
   { id: 'EN TALLER', label: 'EN TALLER' },
 ]
 
-const CAPS = [18, 40, 50, 90, 110]
+
 
 export function PlaneacionView({
   onNewTrip,
@@ -54,7 +60,6 @@ export function PlaneacionView({
   const { units, trips, unitByEco, tripsByEco, planDate, dispatch } = useFleet()
   const [status, setStatus] = useState<RowStatus | 'all'>('all')
   const [kind, setKind] = useState<'all' | 'LOCAL' | 'FORÁNEO'>('all')
-  const [cap, setCap] = useState<number | 'all'>('all')
   const [query, setQuery] = useState('')
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
   const [openStops, setOpenStops] = useState<Set<string>>(new Set())
@@ -82,9 +87,8 @@ export function PlaneacionView({
   const filtered = rows.filter((r) => {
     if (status !== 'all' && r.status !== status) return false
     if (kind !== 'all' && (r.trip?.kind ?? 'LOCAL') !== kind) return false
-    if (cap !== 'all' && r.unit?.capacidad !== cap) return false
     if (query) {
-      const hay = [r.eco, r.trip?.folio, r.trip?.operador, r.trip?.destino, r.trip?.cluster, r.trip?.rampa, r.trip?.carga].join(' ').toLowerCase()
+      const hay = [r.eco, r.trip?.folio, r.trip?.operador, r.trip?.destino, r.trip?.pipa, r.trip?.carga].join(' ').toLowerCase()
       if (!hay.includes(query.toLowerCase())) return false
     }
     return true
@@ -101,7 +105,20 @@ export function PlaneacionView({
       } else singles.push(r)
     }
     for (const list of multi.values()) list.sort((a, b) => (a.trip?.folio ?? 999) - (b.trip?.folio ?? 999))
-    const rank: Record<RowStatus, number> = { CARGADO: 0, COLOCADO: 1, 'SIN UNIDAD': 2, PENDIENTE: 3, 'NO SE CUBRE': 4, 'EN TALLER': 5 }
+    const rank: Record<RowStatus, number> = {
+      CARGADO: 0,
+      COLOCADO: 1,
+      'SIN UNIDAD': 2,
+      PENDIENTE: 3,
+      'POR SALIR': 4,
+      CONTINUACIÓN: 5,
+      REPROGRAMADO: 6,
+      ANALIZANDO: 7,
+      'HORAS DOT': 8,
+      CANCELADO: 9,
+      'NO SE CUBRE': 10,
+      'EN TALLER': 11,
+    }
     singles.sort((a, b) => rank[a.status] - rank[b.status] || (a.trip?.folio ?? 999) - (b.trip?.folio ?? 999))
     return { groups: [...multi.entries()], singles }
   }, [filtered, tripsByEco])
@@ -176,20 +193,10 @@ export function PlaneacionView({
           <FilterChip active={kind === 'FORÁNEO'} onClick={() => setKind('FORÁNEO')}>
             Foráneo
           </FilterChip>
-          <span className="mx-1 h-6 w-px bg-border" aria-hidden />
-          <span className="text-sm text-muted-foreground">Cap.:</span>
-          <FilterChip active={cap === 'all'} onClick={() => setCap('all')}>
-            Todas
-          </FilterChip>
-          {CAPS.map((c) => (
-            <FilterChip key={c} active={cap === c} onClick={() => setCap(c)}>
-              {c} cap. ({rows.filter((r) => r.unit?.capacidad === c).length})
-            </FilterChip>
-          ))}
         </div>
         <SearchField
           aria-label="Buscar en planeación"
-          placeholder="Buscar viaje, ECO, clóster, cortina..."
+          placeholder="Buscar viaje, ECO, pipa, operador..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full md:w-80"
@@ -214,9 +221,9 @@ export function PlaneacionView({
                 <th scope="col" className="px-4 py-4 font-semibold">Eco unidad</th>
                 <th scope="col" className="px-3 py-4 font-semibold">Cap.</th>
                 <th scope="col" className="px-3 py-4 font-semibold">Operador</th>
-                <th scope="col" className="px-3 py-4 font-semibold"># Carga</th>
+                <th scope="col" className="px-3 py-4 font-semibold">Producto</th>
                 <th scope="col" className="px-3 py-4 font-semibold">Sucursal / destino</th>
-                <th scope="col" className="px-3 py-4 font-semibold">Clóster &amp; tipo</th>
+                <th scope="col" className="px-3 py-4 font-semibold">Tipo</th>
                 <th scope="col" className="px-3 py-4 text-center font-semibold">Estatus</th>
                 <th scope="col" className="px-3 py-4 text-center font-semibold">Acciones</th>
               </tr>
@@ -343,10 +350,7 @@ function PlanRowView({
           </div>
         </td>
         <td className="px-3 py-4">
-          <div className="flex flex-col items-start gap-1">
-            <KindTag kind={trip?.kind ?? 'LOCAL'} />
-            <ClusterTag cluster={trip?.cluster ?? ''} />
-          </div>
+          <KindTag kind={trip?.kind ?? 'LOCAL'} />
         </td>
         <td className="px-3 py-4 text-center">
           <StatusPill tone={STATUS_TONE[status]}>{status === 'SIN UNIDAD' ? 'SIN UNIDAD' : status}</StatusPill>

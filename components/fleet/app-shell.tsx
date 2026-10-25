@@ -1,22 +1,24 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent } from 'react'
-import { CirclePlus, CloudUpload, FileSpreadsheet, History, Save } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { CirclePlus, CloudUpload, FileSpreadsheet, Save } from 'lucide-react'
+import { loadFleetState, saveFleetState } from '@/app/actions/fleet'
 import { FleetProvider, newTripId, useFleet } from '@/lib/fleet-store'
 import { exportPatio, exportTrips } from '@/lib/fleet-exports'
 import { parseCsv } from '@/lib/fleet-format'
 import type { Trip, Unit } from '@/lib/fleet-data'
-import { Header, type TabId } from './header'
+import { BrandBackdrop } from './brand-backdrop'
+import { Header } from './header'
+import type { TabId } from './section-menu'
 import { NetworkBackground } from './network-background'
 import { ToolbarButton } from './primitives'
 import { ResumenView } from './resumen-view'
 import { PatioView } from './patio-view'
 import { PlaneacionView } from './planeacion-view'
 import { SupervisorView } from './supervisor-view'
-import { ColocacionView } from './colocacion-view'
+import { IncidenciasView } from './incidencias-view'
 import { UnitDialog } from './unit-dialog'
 import { TripDialog, type TripDialogState } from './trip-dialog'
-import { HistoryDialog } from './history-dialog'
 
 export function AppShell() {
   return (
@@ -29,16 +31,32 @@ export function AppShell() {
 function FleetApp() {
   const fleet = useFleet()
   const [tab, setTab] = useState<TabId>('resumen')
+  const [saving, setSaving] = useState(false)
   const [unitDialog, setUnitDialog] = useState<{ unit: Unit | null } | null>(null)
   const [tripDialog, setTripDialog] = useState<TripDialogState | null>(null)
-  const [historyOpen, setHistoryOpen] = useState(false)
   const [toast, setToast] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const { dispatch } = fleet
 
   const notify = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(''), 2800)
   }
+
+  // Pick up the state saved with "Guardar Día" in a previous session.
+  const hydrated = useRef(false)
+  useEffect(() => {
+    if (hydrated.current) return
+    hydrated.current = true
+    void (async () => {
+      try {
+        const saved = await loadFleetState()
+        if (saved) dispatch({ type: 'hydrate', data: saved.data })
+      } catch {
+        // No saved day yet (or it cannot be read): keep the seed data on screen.
+      }
+    })()
+  }, [dispatch])
 
   const onNewTrip = (eco?: string) => setTripDialog({ trip: null, defaultEco: eco })
   const onEditTrip = (trip: Trip) => setTripDialog({ trip })
@@ -69,15 +87,14 @@ function FleetApp() {
           eco,
           operador: (r.operador || 'POR ASIGNAR').toUpperCase(),
           turno: r.turno || 'M1',
-          carga: (r.carga || r['# carga'] || '').toUpperCase(),
+          carga: (r.producto || r.carga || r['# carga'] || '').toUpperCase(),
           destino,
           entregas: (r.entregas || '').split('|').map((s) => s.trim()).filter(Boolean),
           kind,
-          cluster: (r.cluster || '').toUpperCase(),
           salida: r.salida || '',
           tiempoEst: '—',
           eta: '',
-          rampa: r.rampa || r.cajon || '',
+          pipa: (r.pipa || r['numero de pipa'] || '').trim(),
           planStatus: 'CARGADO',
           supStatus: 'CARGADO',
           regresaManana: /^s/i.test(r['regresa manana'] ?? ''),
@@ -93,23 +110,32 @@ function FleetApp() {
     notify(`${trips.length} viajes importados`)
   }
 
-  const saveDay = () => {
-    fleet.saveDay()
-    notify('Día guardado en el historial')
+  // "Guardar Día" stores every registration, change and edition made so far.
+  const saveDay = async () => {
+    const entry = fleet.saveDay()
+    setSaving(true)
+    try {
+      await saveFleetState({
+        units: fleet.units,
+        trips: fleet.trips,
+        history: [entry, ...fleet.history],
+        planDate: fleet.planDate,
+        incidencias: fleet.incidencias,
+        operadores: fleet.operadores,
+      })
+      notify('Día guardado: registros, cambios y ediciones sincronizados')
+    } catch (failure) {
+      notify(failure instanceof Error ? failure.message : 'No se pudo guardar el día')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const common = (
-    <>
-      <ToolbarButton tone="primary" onClick={saveDay}>
-        <Save aria-hidden />
-        Guardar Día
-      </ToolbarButton>
-      <ToolbarButton tone="violet" onClick={() => setHistoryOpen(true)}>
-        <History aria-hidden />
-        Historial
-        <span className="rounded-full bg-violet px-1.5 font-mono text-[11px] text-foreground">{fleet.history.length}</span>
-      </ToolbarButton>
-    </>
+    <ToolbarButton tone="primary" onClick={() => void saveDay()} disabled={saving}>
+      <Save aria-hidden />
+      {saving ? 'Guardando…' : 'Guardar Día'}
+    </ToolbarButton>
   )
 
   const actions: Record<TabId, React.ReactNode> = {
@@ -153,11 +179,12 @@ function FleetApp() {
         </ToolbarButton>
       </>
     ),
-    colocacion: null,
+    incidencias: common,
   }
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
+      <BrandBackdrop />
       <NetworkBackground />
       <Header tab={tab} onTabChange={setTab} actions={actions[tab]} />
 
@@ -176,7 +203,7 @@ function FleetApp() {
           />
         )}
         {tab === 'supervisor' && <SupervisorView onEditTrip={onEditTrip} />}
-        {tab === 'colocacion' && <ColocacionView />}
+        {tab === 'incidencias' && <IncidenciasView />}
       </main>
 
       <footer className="border-t border-border bg-background/85 px-4 py-6 text-center text-xs text-muted-foreground backdrop-blur-md">
@@ -184,14 +211,13 @@ function FleetApp() {
         <span className="mx-2" aria-hidden>
           •
         </span>
-        Patio (En CD) | Planeación | Supervisor (Ruta) | Resumen General | Colocación
+        Patio (En CD) | Planeación | Supervisor (Ruta) | Resumen General | Rol de Incidencias
       </footer>
 
       <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" tabIndex={-1} aria-hidden onChange={handleImport} />
 
       <UnitDialog unit={unitDialog?.unit ?? null} open={unitDialog !== null} onOpenChange={(o) => !o && setUnitDialog(null)} />
       <TripDialog state={tripDialog} onOpenChange={(o) => !o && setTripDialog(null)} />
-      <HistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
 
       <div role="status" aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50">
         {toast && (

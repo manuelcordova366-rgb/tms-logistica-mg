@@ -5,16 +5,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFleet } from '@/lib/fleet-store'
-import type { PatioStatus, Unit, UnitKind } from '@/lib/fleet-data'
+import { PATIO_STATUS_LABEL, UNIT_KINDS, type PatioStatus, type Unit, type UnitKind } from '@/lib/fleet-data'
 import { Field, NativeSelect, inputClass } from './form-fields'
 
-const KINDS: UnitKind[] = ['Camioneta', 'Rango Medio', 'Sencillo', 'Tracto / Full']
-const STATUSES: { value: PatioStatus; label: string }[] = [
-  { value: 'disponible', label: 'Disponible en Patio' },
-  { value: 'ruta', label: 'Ruta asignada' },
-  { value: 'colocado', label: 'Colocado p/ Carga' },
-  { value: 'taller', label: 'Taller / Mtto' },
-]
+/** Only these two kinds are registered by hand. */
+const KINDS: UnitKind[] = UNIT_KINDS
+const STATUSES: { value: PatioStatus; label: string }[] = (Object.keys(PATIO_STATUS_LABEL) as PatioStatus[]).map((value) => ({
+  value,
+  label: PATIO_STATUS_LABEL[value],
+}))
 
 export function UnitDialog({ unit, open, onOpenChange }: { unit: Unit | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
@@ -29,15 +28,15 @@ export function UnitDialog({ unit, open, onOpenChange }: { unit: Unit | null; op
 function UnitForm({ unit, onDone }: { unit: Unit | null; onDone: () => void }) {
   const { dispatch, unitByEco } = useFleet()
   const [error, setError] = useState('')
+  // A unit registered before this change keeps its kind selectable while editing.
+  const kinds = unit && !KINDS.includes(unit.kind) ? [unit.kind, ...KINDS] : KINDS
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
     const eco = String(data.get('eco') ?? '').trim().toUpperCase()
     const placas = String(data.get('placas') ?? '').trim().toUpperCase()
-    const capacidad = Number(data.get('capacidad'))
-    if (!eco || !placas) return setError('ECO y placas son obligatorios.')
-    if (!Number.isFinite(capacidad) || capacidad <= 0 || capacidad > 500) return setError('Capacidad inválida (1 - 500 m³).')
+    if (!eco) return setError('El ECO es obligatorio.')
     if (eco !== unit?.eco && unitByEco.has(eco)) return setError(`Ya existe la unidad ECO ${eco}.`)
     dispatch({
       type: 'upsertUnit',
@@ -45,7 +44,8 @@ function UnitForm({ unit, onDone }: { unit: Unit | null; onDone: () => void }) {
       unit: {
         eco,
         placas,
-        capacidad,
+        // Capacity is no longer captured here: keep the value the unit already had.
+        capacidad: unit?.capacidad ?? 18,
         kind: String(data.get('kind')) as UnitKind,
         patioStatus: String(data.get('status')) as PatioStatus,
       },
@@ -63,18 +63,15 @@ function UnitForm({ unit, onDone }: { unit: Unit | null; onDone: () => void }) {
         <Field label="ECO" htmlFor="unit-eco">
           <Input id="unit-eco" name="eco" defaultValue={unit?.eco} required className={inputClass} />
         </Field>
-        <Field label="Placas" htmlFor="unit-placas">
-          <Input id="unit-placas" name="placas" defaultValue={unit?.placas} required className={inputClass} />
+        <Field label="Placas (opcional)" htmlFor="unit-placas">
+          <Input id="unit-placas" name="placas" defaultValue={unit?.placas} placeholder="Sin placas" className={inputClass} />
         </Field>
         <Field label="Tipo" htmlFor="unit-kind">
-          <NativeSelect id="unit-kind" name="kind" defaultValue={unit?.kind ?? 'Camioneta'}>
-            {KINDS.map((k) => (
+          <NativeSelect id="unit-kind" name="kind" defaultValue={unit?.kind ?? 'Sencillo'}>
+            {kinds.map((k) => (
               <option key={k}>{k}</option>
             ))}
           </NativeSelect>
-        </Field>
-        <Field label="Capacidad (m³)" htmlFor="unit-cap">
-          <Input id="unit-cap" name="capacidad" type="number" min={1} max={500} defaultValue={unit?.capacidad ?? 18} className={inputClass} />
         </Field>
         <Field label="Estatus en patio" htmlFor="unit-status" className="col-span-2">
           <NativeSelect id="unit-status" name="status" defaultValue={unit?.patioStatus ?? 'disponible'}>
