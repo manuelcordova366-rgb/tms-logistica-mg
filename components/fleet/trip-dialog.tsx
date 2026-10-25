@@ -67,6 +67,7 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
         id: trip?.id ?? newTripId(),
         folio,
         eco,
+        pipa: get('pipa'),
         operador: get('operador').toUpperCase() || 'POR ASIGNAR',
         turno: get('turno') || 'M1',
         carga: get('carga').toUpperCase(),
@@ -76,11 +77,9 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
           .map((s) => s.trim())
           .filter(Boolean),
         kind: get('kind') as TripKind,
-        cluster: get('cluster').toUpperCase(),
         salida: get('salida'),
         tiempoEst: get('tiempoEst') || '—',
         eta: get('eta'),
-        rampa: get('rampa'),
         planStatus: get('planStatus') as PlanStatus,
         supStatus: get('supStatus') as SupervisorStatus,
         regresaManana: d.get('regresaManana') === 'on',
@@ -112,6 +111,10 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
             ))}
           </NativeSelect>
         </Field>
+        <Field label="Número de pipa" htmlFor="t-pipa">
+          {/* Se escribe a mano: la pipa no forma parte del registro de patio. */}
+          <Input id="t-pipa" name="pipa" defaultValue={trip?.pipa} placeholder="Escribir número de pipa" className={inputClass} />
+        </Field>
         <Field label="Producto" htmlFor="t-carga">
           <Input id="t-carga" name="carga" defaultValue={trip?.carga} className={inputClass} />
         </Field>
@@ -130,14 +133,8 @@ function TripForm({ state, onDone }: { state: TripDialogState; onDone: () => voi
             <option value="FORÁNEO">FORÁNEO</option>
           </NativeSelect>
         </Field>
-        <Field label="Clóster" htmlFor="t-cluster">
-          <Input id="t-cluster" name="cluster" defaultValue={trip?.cluster ?? ''} placeholder="Escribir clóster" className={inputClass} />
-        </Field>
         <Field label="Salida" htmlFor="t-salida">
           <Input id="t-salida" name="salida" type="time" defaultValue={trip?.salida} className={inputClass} />
-        </Field>
-        <Field label="Cajón / Rampa" htmlFor="t-rampa">
-          <Input id="t-rampa" name="rampa" defaultValue={trip?.rampa} className={inputClass} />
         </Field>
         <Field label="Tiempo est." htmlFor="t-test">
           <Input id="t-test" name="tiempoEst" defaultValue={trip?.tiempoEst === '—' ? '' : trip?.tiempoEst} placeholder="2h 30m" className={inputClass} />

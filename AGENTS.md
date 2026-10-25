@@ -89,26 +89,66 @@ returning 500 in the sandbox, check this first — the error only appears in `lo
 
 ## Board modules (current state)
 
-- **Unidades / Patio**: the unit registry starts **empty on purpose** — `SEED_UNITS` in
-  `lib/fleet-data.ts` is `[]` (the previous plantilla was cleared on request). Units are
-  captured by hand from Patio → *Registrar Unidad en Patio*, or with the CSV template.
-  `SEED_TRIPS` still holds the demo trips, so until they are reassigned they show as
-  `SIN UNIDAD` in Planeación and the Resumen table has no rows.
+- **The board starts from zero records on request.** `SEED_UNITS`, `SEED_TRIPS`,
+  `SEED_OPERADORES` and `SEED_HISTORY` in `lib/fleet-data.ts` are all `[]`, and the
+  `fleet_state` row was deleted, so a fresh boot shows 0 viajes, 0 unidades and 0
+  operadores. Everything is created by the user. A `fleet_state` row is only written by
+  **Guardar Día**, so a fresh sandbox has no row at all.
+- **Unidades / Patio**: units are captured by hand from Patio → *Registrar Unidad en Patio*,
+  or with the CSV template.
 - **Rol de Incidencias** (`components/fleet/incidencias-view.tsx`, tab `incidencias`):
   weekly Monday→Sunday log of asistencias / faltas / incapacidades / permisos / traslados /
   vacaciones. One `<select>` per operator-day; the value is stored in the board's
   `incidencias` map under `"<fecha ISO>|<operador>"` (`IncidenciaTipo`, `IncidenciaRegistro`
-  in `lib/fleet-data.ts`) and an unregistered cell reads as `ASISTENCIA`. The operator
-  roster (`OPERADORES`) is the distinct `operador` of `SEED_TRIPS`. The search box filters
-  by operator name (accent-insensitive). The log travels inside the same `fleet_state` JSON
-  row as the rest of the board, so it is written by **Guardar Día** (the toolbar button on
-  that tab) and restored on page load.
+  in `lib/fleet-data.ts`) and an unregistered cell reads as `ASISTENCIA`. The search box
+  filters by operator name (accent-insensitive).
+- **Plantilla de operadores**: the roster is no longer derived from the trips — it lives in
+  the board state (`operadores`, seeded from `SEED_OPERADORES`) and is edited **inside the
+  Incidencias tab**: type a name + *Agregar operador*, *Plantilla* downloads
+  `plantilla-operadores.csv` (a single `OPERADOR` column, header only, so uploading it
+  unchanged adds nothing), *Subir Plantilla* reads that CSV (Excel must be saved as CSV,
+  like the Patio template) and merges names without duplicates, uppercased and sorted
+  (`mergeOperadores` in `lib/fleet-data.ts`). Each row also has a delete button.
+  The roster travels in the same `fleet_state` JSON row as the rest of the board, so the
+  log **and** the roster are written by **Guardar Día** (the toolbar button on that tab) and
+  restored on page load.
 - **Historial**: the "Historial" button and the restore dialog were removed on request.
   `saveDay` still appends to the persisted `history` array (kept so the stored schema does
   not break), but no screen browses or restores it.
+- **Trip form** (`components/fleet/trip-dialog.tsx`): `pipa` ("Número de pipa") sits right
+  next to *Unidad (ECO)* and is **typed by hand** — it is deliberately *not* a field of the
+  Patio unit registry (`Unit` has no `pipa`). The old *Clóster* (`cluster`) and
+  *Cajón / Rampa* (`rampa`) fields were removed from the form **and from the `Trip` type**:
+  `ClusterTag`, the planeación/supervisor cluster cells and the patio card's rampa line are
+  gone with them, and the planeación CSV export column `Cluster` became `Pipa`. The
+  planeación CSV import accepts a `PIPA` column. If you ever need cluster/rampa back, they
+  have to be re-added end to end.
 - **Colocación** was replaced by the Rol de Incidencias: `components/fleet/colocacion-view.tsx`,
   `colocacion-report.tsx` and the data it used (`COLOCACION_EJECUTADAS`, `HEADCOUNT`,
   `MOVIMIENTOS_LABELS`) are gone.
+
+## Brand, background and navigation
+
+- **Palette comes from the logo.** `public/logistica-mg-logo.png` is a navy→sky gradient
+  mark on white; its colours are sampled in `app/globals.css` as `--brand-navy #0a3767`,
+  `--brand-blue #0b5a96`, `--brand-sky #77c8e7`, `--brand-teal #2b9788`. The dashboard
+  surface (`--background #051f3d`, `--card`, `--secondary`, `--border`, `--input`) and
+  `--primary #77c8e7` follow those blues; `--success #48b376` is the logo's green arrow tip.
+  `--warning`, `--danger`/`--destructive` and `--violet` stay semantic (status pills, FORÁNEO
+  tag). `app/layout.tsx`'s `themeColor` matches `--background`.
+  Keep the UI dark: everything is built for white/blue ink on these surfaces.
+- **Background carousel** (`components/fleet/brand-backdrop.tsx`, `-z-20`, decorative):
+  four slides rotating every 7.5s — the fleet photo from
+  `public/cedis-patio-trucks-header.png` (740×320, so it is used as a soft, veiled
+  full-bleed image with a slow zoom) alternating with the two logo plates on a white
+  card. Each slide carries its own scrim, so the panels (`bg-card/85 backdrop-blur`) stay
+  readable; the photo veil is lighter than the plate veil on purpose, otherwise the photo
+  disappears behind the cards. The caption/dots at the bottom only render at `lg` and sit
+  under the dashboard panels. `prefers-reduced-motion` keeps the first slide still.
+- **Sections live in one dropdown** (`components/fleet/section-menu.tsx`, used by the
+  header): Patio, Planeación, Supervisor, Resumen, Incidencias. `TabId` is declared there
+  and imported by `app-shell.tsx`; the units badge shows on the button only for Resumen.
+  The menu closes on select, outside click and Escape.
 
 ## Verifying a change
 
@@ -116,10 +156,13 @@ returning 500 in the sandbox, check this first — the error only appears in `lo
 curl -sS -o /dev/null -w '%{http_code}\n' http://localhost:3000/     # expect 200
 docker compose -f docker-compose.base44.yml logs web --tail=30       # Server Action errors show here
 docker compose -f docker-compose.base44.yml exec -T db \
-  psql -U app -d app -c "select id from fleet_state;"                # board persistence
+  psql -U app -d app -c "select id, data->'operadores', jsonb_array_length(data->'trips') from fleet_state;"
 ```
 
-`docker compose ps` should show `db` and `web` both `healthy`. Past the render, the two
-paths worth exercising are the section tabs and **Guardar Día** (it must show the green
-"Día guardado…" toast, not an error). A verification save leaves one `fleet_state` row —
-delete that row afterwards if it was only a test.
+`docker compose ps` should show `db` and `web` both `healthy`. Past the render, the paths
+worth exercising are the section **dropdown** (it replaced the old tab strip) and **Guardar
+Día** (it must show the green "Día guardado…" toast, not an error). Saving the roster in
+Incidencias is the shortest end-to-end check of the new persistence: add an operator, save,
+reload — the roster must come back (`operadores` in the row). A verification save leaves one
+`fleet_state` row; delete it afterwards so the board is back to its 0-records start
+(`psql … -c "delete from fleet_state;"`).

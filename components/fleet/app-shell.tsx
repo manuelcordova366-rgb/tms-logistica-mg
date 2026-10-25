@@ -8,7 +8,8 @@ import { exportPatio, exportTrips } from '@/lib/fleet-exports'
 import { parseCsv } from '@/lib/fleet-format'
 import type { Trip, Unit } from '@/lib/fleet-data'
 import { BrandBackdrop } from './brand-backdrop'
-import { Header, type TabId } from './header'
+import { Header } from './header'
+import type { TabId } from './section-menu'
 import { NetworkBackground } from './network-background'
 import { ToolbarButton } from './primitives'
 import { ResumenView } from './resumen-view'
@@ -90,11 +91,10 @@ function FleetApp() {
           destino,
           entregas: (r.entregas || '').split('|').map((s) => s.trim()).filter(Boolean),
           kind,
-          cluster: (r.cluster || '').toUpperCase(),
           salida: r.salida || '',
           tiempoEst: '—',
           eta: '',
-          rampa: r.rampa || r.cajon || '',
+          pipa: (r.pipa || r['numero de pipa'] || '').trim(),
           planStatus: 'CARGADO',
           supStatus: 'CARGADO',
           regresaManana: /^s/i.test(r['regresa manana'] ?? ''),
@@ -121,6 +121,7 @@ function FleetApp() {
         history: [entry, ...fleet.history],
         planDate: fleet.planDate,
         incidencias: fleet.incidencias,
+        operadores: fleet.operadores,
       })
       notify('Día guardado: registros, cambios y ediciones sincronizados')
     } catch (failure) {

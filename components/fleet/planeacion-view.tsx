@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useFleet } from '@/lib/fleet-store'
 import { formatPlanDate } from '@/lib/fleet-format'
 import type { PlanStatus, Trip, Unit } from '@/lib/fleet-data'
-import { ClusterTag, EcoBadge, EmptyRow, FilterChip, IconButton, KindTag, Panel, PlanChip, SearchField, StatusPill, type PillTone } from './primitives'
+import { EcoBadge, EmptyRow, FilterChip, IconButton, KindTag, Panel, PlanChip, SearchField, StatusPill, type PillTone } from './primitives'
 
 type RowStatus = PlanStatus | 'EN TALLER' | 'SIN UNIDAD'
 
@@ -88,7 +88,7 @@ export function PlaneacionView({
     if (status !== 'all' && r.status !== status) return false
     if (kind !== 'all' && (r.trip?.kind ?? 'LOCAL') !== kind) return false
     if (query) {
-      const hay = [r.eco, r.trip?.folio, r.trip?.operador, r.trip?.destino, r.trip?.cluster, r.trip?.rampa, r.trip?.carga].join(' ').toLowerCase()
+      const hay = [r.eco, r.trip?.folio, r.trip?.operador, r.trip?.destino, r.trip?.pipa, r.trip?.carga].join(' ').toLowerCase()
       if (!hay.includes(query.toLowerCase())) return false
     }
     return true
@@ -196,7 +196,7 @@ export function PlaneacionView({
         </div>
         <SearchField
           aria-label="Buscar en planeación"
-          placeholder="Buscar viaje, ECO, clóster, cortina..."
+          placeholder="Buscar viaje, ECO, pipa, operador..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full md:w-80"
@@ -223,7 +223,7 @@ export function PlaneacionView({
                 <th scope="col" className="px-3 py-4 font-semibold">Operador</th>
                 <th scope="col" className="px-3 py-4 font-semibold">Producto</th>
                 <th scope="col" className="px-3 py-4 font-semibold">Sucursal / destino</th>
-                <th scope="col" className="px-3 py-4 font-semibold">Clóster &amp; tipo</th>
+                <th scope="col" className="px-3 py-4 font-semibold">Tipo</th>
                 <th scope="col" className="px-3 py-4 text-center font-semibold">Estatus</th>
                 <th scope="col" className="px-3 py-4 text-center font-semibold">Acciones</th>
               </tr>
@@ -350,10 +350,7 @@ function PlanRowView({
           </div>
         </td>
         <td className="px-3 py-4">
-          <div className="flex flex-col items-start gap-1">
-            <KindTag kind={trip?.kind ?? 'LOCAL'} />
-            <ClusterTag cluster={trip?.cluster ?? ''} />
-          </div>
+          <KindTag kind={trip?.kind ?? 'LOCAL'} />
         </td>
         <td className="px-3 py-4 text-center">
           <StatusPill tone={STATUS_TONE[status]}>{status === 'SIN UNIDAD' ? 'SIN UNIDAD' : status}</StatusPill>

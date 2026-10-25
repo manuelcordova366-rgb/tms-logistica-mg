@@ -1,12 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, UserRound } from 'lucide-react'
+import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, CloudUpload, FileDown, Plus, Trash2, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFleet } from '@/lib/fleet-store'
-import { formatPlanDate, shiftISODate, toISODate } from '@/lib/fleet-format'
-import { INCIDENCIA_LABEL, INCIDENCIA_TIPOS, OPERADORES, type IncidenciaTipo } from '@/lib/fleet-data'
-import { EmptyRow, Panel, SearchField } from './primitives'
+import { downloadCsv, formatPlanDate, parseCsv, shiftISODate, toISODate } from '@/lib/fleet-format'
+import { INCIDENCIA_LABEL, INCIDENCIA_TIPOS, type IncidenciaTipo } from '@/lib/fleet-data'
+import { EmptyRow, IconButton, Panel, SearchField } from './primitives'
 
 /** El rol siempre se captura de lunes a domingo. */
 const DAY_LABELS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
@@ -37,23 +37,55 @@ function mondayOf(iso: string) {
 }
 
 export function IncidenciasView() {
-  const { planDate, incidencias, dispatch } = useFleet()
+  const { planDate, incidencias, operadores, dispatch } = useFleet()
   const [weekStart, setWeekStart] = useState(() => mondayOf(planDate))
   const [query, setQuery] = useState('')
+  const [nombre, setNombre] = useState('')
+  const [notice, setNotice] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => shiftISODate(weekStart, i)), [weekStart])
-  const operadores = useMemo(() => {
+  const visibles = useMemo(() => {
     const q = normalize(query)
-    return q ? OPERADORES.filter((nombre) => normalize(nombre).includes(q)) : OPERADORES
-  }, [query])
+    return q ? operadores.filter((operador) => normalize(operador).includes(q)) : operadores
+  }, [query, operadores])
 
   const tipoDe = (fecha: string, operador: string): IncidenciaTipo => incidencias[registroKey(fecha, operador)] ?? 'ASISTENCIA'
 
   const totales = useMemo(() => {
     const counts = Object.fromEntries(INCIDENCIA_TIPOS.map((tipo) => [tipo, 0])) as Record<IncidenciaTipo, number>
-    for (const operador of operadores) for (const fecha of days) counts[tipoDe(fecha, operador)] += 1
+    for (const operador of visibles) for (const fecha of days) counts[tipoDe(fecha, operador)] += 1
     return counts
-  }, [operadores, days, incidencias]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visibles, days, incidencias]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const agregarOperador = () => {
+    const limpio = nombre.trim()
+    if (!limpio) return
+    dispatch({ type: 'addOperador', nombre: limpio })
+    setNombre('')
+    setNotice(`${limpio.toUpperCase()} se agregó a la plantilla del rol`)
+  }
+
+  /** Plantilla sencilla (una columna) para llenar en Excel y subir el rol completo. */
+  const downloadTemplate = () => downloadCsv('plantilla-operadores.csv', ['OPERADOR'], [])
+
+  async function handleImport(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!/\.csv$/i.test(file.name)) {
+      setNotice('Guarda la plantilla de Excel como CSV (.csv) para subirla')
+      return
+    }
+    const rows = parseCsv(await file.text())
+    const nombres = rows.map((row) => (row.operador || row.nombre || Object.values(row)[0] || '').trim()).filter(Boolean)
+    if (nombres.length === 0) {
+      setNotice('No se encontraron nombres: la plantilla necesita la columna OPERADOR')
+      return
+    }
+    dispatch({ type: 'importOperadores', nombres })
+    setNotice(`${nombres.length} operadores cargados desde la plantilla`)
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -97,6 +129,57 @@ export function IncidenciasView() {
           />
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              agregarOperador()
+            }}
+          >
+            <input
+              aria-label="Nombre del operador"
+              placeholder="Nombre del operador (Ej. JUAN PEREZ GARCIA)"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              className="h-10 w-full rounded-lg border border-border bg-background/70 px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none md:w-80"
+            />
+            <button
+              type="button"
+              onClick={agregarOperador}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-background shadow-lg shadow-success/25 hover:bg-success/90"
+            >
+              <Plus className="size-4" aria-hidden />
+              Agregar operador
+            </button>
+          </form>
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-primary hover:bg-primary/20"
+          >
+            <FileDown className="size-4" aria-hidden />
+            Plantilla
+          </button>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-secondary px-4 text-sm font-semibold"
+          >
+            <CloudUpload className="size-4" aria-hidden />
+            Subir Plantilla
+          </button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" tabIndex={-1} aria-hidden onChange={handleImport} />
+          <p className="text-xs text-muted-foreground">
+            La plantilla es un CSV de una sola columna (OPERADOR) que puedes llenar en Excel para la carga masiva de nombres.
+          </p>
+        </div>
+        {notice && (
+          <p role="status" className="text-sm font-semibold text-success">
+            {notice}
+          </p>
+        )}
+
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {INCIDENCIA_TIPOS.map((tipo) => (
             <div key={tipo} className={cn('rounded-xl border px-4 py-3', TONE[tipo])}>
@@ -119,7 +202,7 @@ export function IncidenciasView() {
         </div>
 
         <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full min-w-[1180px] text-sm">
+          <table className="w-full min-w-[1240px] text-sm">
             <thead>
               <tr className="border-b-2 border-primary/60 text-left font-mono text-xs tracking-widest text-primary uppercase">
                 <th scope="col" className="px-5 py-4 font-semibold">
@@ -133,13 +216,18 @@ export function IncidenciasView() {
                 <th scope="col" className="px-4 py-4 text-center font-semibold">
                   Incidencias
                 </th>
+                <th scope="col" className="px-4 py-4 text-center font-semibold">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
-              {operadores.length === 0 && (
-                <EmptyRow colSpan={9}>{query ? 'Sin operadores que coincidan con la búsqueda' : 'Sin operadores registrados en el rol'}</EmptyRow>
+              {visibles.length === 0 && (
+                <EmptyRow colSpan={10}>
+                  {query ? 'Sin operadores que coincidan con la búsqueda' : 'Sin operadores: escribe un nombre o sube la plantilla para armar el rol'}
+                </EmptyRow>
               )}
-              {operadores.map((operador) => {
+              {visibles.map((operador) => {
                 const incidenciasSemana = days.filter((fecha) => tipoDe(fecha, operador) !== 'ASISTENCIA').length
                 return (
                   <tr key={operador} className="border-b border-border/70 transition-colors hover:bg-accent/40">
@@ -177,6 +265,19 @@ export function IncidenciasView() {
                       >
                         {incidenciasSemana}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        <IconButton
+                          label={`Quitar a ${operador} del rol`}
+                          tone="danger"
+                          onClick={() => {
+                            if (window.confirm(`¿Quitar a ${operador} de la plantilla del rol?`)) dispatch({ type: 'removeOperador', nombre: operador })
+                          }}
+                        >
+                          <Trash2 />
+                        </IconButton>
+                      </div>
                     </td>
                   </tr>
                 )

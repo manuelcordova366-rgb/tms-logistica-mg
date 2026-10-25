@@ -248,10 +248,6 @@ function UnitCard({
         {main && (
           <>
             <div className="flex gap-1">
-              <dt className="font-bold">Cajón / Rampa:</dt>
-              <dd className="font-semibold text-success">{main.rampa || '—'}</dd>
-            </div>
-            <div className="flex gap-1">
               <dt className="shrink-0 font-bold">Destino:</dt>
               <dd className="text-primary">{trips.map((t) => t.destino).join(' → ')}</dd>
             </div>

@@ -8,29 +8,35 @@
 :root {
   --radius: 0.75rem;
 
-  /* Panel / dashboard palette (dark operations console) */
-  --background: #070b14;
-  --foreground: #e8eef7;
-  --card: #0f1626;
-  --card-foreground: #e8eef7;
-  --popover: #101a2b;
-  --popover-foreground: #e8eef7;
-  --primary: #38bdf8;
-  --primary-foreground: #04121f;
-  --secondary: #1a2438;
-  --secondary-foreground: #cbd8ea;
-  --muted: #16203a;
-  --muted-foreground: #93a4bd;
-  --accent: #1e2c45;
-  --accent-foreground: #e8eef7;
+  /* Brand palette: azules y verde del logotipo de Logística M&G */
+  --brand-navy: #0a3767;
+  --brand-blue: #0b5a96;
+  --brand-sky: #77c8e7;
+  --brand-teal: #2b9788;
+
+  /* Panel / dashboard palette (consola de operación en azul oscuro de la marca) */
+  --background: #051f3d;
+  --foreground: #e9f2fb;
+  --card: #0a2e56;
+  --card-foreground: #e9f2fb;
+  --popover: #0c3563;
+  --popover-foreground: #e9f2fb;
+  --primary: #77c8e7;
+  --primary-foreground: #04182e;
+  --secondary: #113a68;
+  --secondary-foreground: #c7dcf2;
+  --muted: #0d2f56;
+  --muted-foreground: #93b6d6;
+  --accent: #16457a;
+  --accent-foreground: #e9f2fb;
   --destructive: #f87171;
   --danger: #f87171;
   --warning: #fbbf24;
-  --success: #34d399;
+  --success: #48b376;
   --violet: #a78bfa;
-  --border: #24334d;
-  --input: #1b2740;
-  --ring: #38bdf8;
+  --border: #1d5288;
+  --input: #0f3459;
+  --ring: #77c8e7;
 
   /* Sheet palette: the light, printable report (colocacion-report) */
   --sheet: #ffffff;
@@ -71,6 +77,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-sky: var(--brand-sky);
+  --color-brand-teal: var(--brand-teal);
 
   --color-sheet: var(--sheet);
   --color-sheet-foreground: var(--sheet-foreground);

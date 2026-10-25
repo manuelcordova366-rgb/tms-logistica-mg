@@ -7,7 +7,7 @@ import { useFleet } from '@/lib/fleet-store'
 import { currentHHMM, formatPlanDate } from '@/lib/fleet-format'
 import type { SupervisorStatus, Trip } from '@/lib/fleet-data'
 import { SUP_SUPERVISOR } from '@/lib/fleet-status'
-import { ClusterTag, EmptyRow, FilterChip, IconButton, KindTag, Panel, PlanChip, SearchField, StatusPill } from './primitives'
+import { EmptyRow, FilterChip, IconButton, KindTag, Panel, PlanChip, SearchField, StatusPill } from './primitives'
 import { MapPin } from 'lucide-react'
 
 const STATUS_FILTERS: { id: SupervisorStatus; label: string; icon?: typeof Clock3; danger?: boolean }[] = [
@@ -49,7 +49,7 @@ export function SupervisorView({ onEditTrip }: { onEditTrip: (trip: Trip) => voi
     if (kind !== 'all' && t.kind !== kind) return false
     if (status !== 'all' && t.supStatus !== status) return false
     if (query) {
-      const hay = [t.eco, t.operador, t.cluster, t.destino, ...t.entregas].join(' ').toLowerCase()
+      const hay = [t.eco, t.operador, t.pipa, t.destino, ...t.entregas].join(' ').toLowerCase()
       if (!hay.includes(query.toLowerCase())) return false
     }
     return true
@@ -60,7 +60,7 @@ export function SupervisorView({ onEditTrip }: { onEditTrip: (trip: Trip) => voi
       <Panel className="flex flex-col gap-4 p-5">
         <SearchField
           aria-label="Buscar en supervisor"
-          placeholder="Buscar por ECO, operador, clóster o destino..."
+          placeholder="Buscar por ECO, operador, pipa o destino..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full md:w-80"
@@ -110,7 +110,7 @@ export function SupervisorView({ onEditTrip }: { onEditTrip: (trip: Trip) => voi
               <tr className="border-b-2 border-primary/60 text-left font-mono text-xs tracking-widest text-primary uppercase">
                 <th scope="col" className="sticky left-0 z-10 w-24 bg-card px-4 py-4 font-semibold">Económico</th>
                 <th scope="col" className="sticky left-24 z-10 w-44 bg-card px-3 py-4 font-semibold">Operador</th>
-                <th scope="col" className="px-3 py-4 font-semibold">Destino, clóster &amp; tipo</th>
+                <th scope="col" className="px-3 py-4 font-semibold">Destino &amp; tipo</th>
                 <th scope="col" className="px-3 py-4 font-semibold">Salida</th>
                 <th scope="col" className="px-3 py-4 font-semibold">Tiempo est.</th>
                 <th scope="col" className="px-3 py-4 font-semibold">ETA</th>
@@ -143,7 +143,6 @@ export function SupervisorView({ onEditTrip }: { onEditTrip: (trip: Trip) => voi
                       </div>
                       <div className="mt-1.5 flex gap-1.5">
                         <KindTag kind={t.kind} />
-                        <ClusterTag cluster={t.cluster} />
                       </div>
                     </td>
                     <td className="px-3 py-4 font-mono font-bold">{t.salida || '—'}</td>

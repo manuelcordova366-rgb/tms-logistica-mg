@@ -62,15 +62,6 @@ export function KindTag({ kind }: { kind: TripKind }) {
   )
 }
 
-export function ClusterTag({ cluster }: { cluster: string }) {
-  if (!cluster) return null
-  return (
-    <span className="inline-flex items-center rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-      {cluster}
-    </span>
-  )
-}
-
 export type PillTone = 'warning' | 'success' | 'danger' | 'primary' | 'violet' | 'muted' | 'warning-outline'
 
 const PILL_TONES: Record<PillTone, string> = {

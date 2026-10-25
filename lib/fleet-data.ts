@@ -52,17 +52,17 @@ export interface Trip {
   id: string
   folio: number | null
   eco: string
+  /** Número de pipa que lleva el viaje: se escribe a mano y no forma parte del registro de patio. */
+  pipa: string
   operador: string
   turno: string
   carga: string
   destino: string
   entregas: string[]
   kind: TripKind
-  cluster: string
   salida: string
   tiempoEst: string
   eta: string
-  rampa: string
   planStatus: PlanStatus
   supStatus: SupervisorStatus
   regresaManana: boolean
@@ -91,6 +91,8 @@ export interface FleetData {
   planDate: string
   /** Rol de incidencias capturado por semana (opcional: las filas previas no lo traen). */
   incidencias?: IncidenciaRegistro
+  /** Plantilla de operadores del rol de incidencias (opcional: las filas previas no la traen). */
+  operadores?: string[]
 }
 
 export function fleetGroupOf(kind: UnitKind): FleetGroup {
@@ -139,6 +141,21 @@ export function normalizePatioStatus(value: string): PatioStatus {
   return 'disponible'
 }
 
+/** Nombres de operador tal como se capturan en el rol: sin espacios sobrantes ni duplicados. */
+export function normalizeOperador(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toUpperCase()
+}
+
+/** Une la plantilla actual con los nombres nuevos, sin duplicados y en orden alfabético. */
+export function mergeOperadores(actuales: string[], nuevos: string[]) {
+  const byName = new Map<string, string>()
+  for (const nombre of [...actuales, ...nuevos]) {
+    const limpio = normalizeOperador(nombre)
+    if (limpio) byName.set(limpio, limpio)
+  }
+  return [...byName.values()].sort((a, b) => a.localeCompare(b, 'es'))
+}
+
 /**
  * El registro de unidades arranca vacío: se dio de baja toda la plantilla anterior.
  * Las unidades se capturan a mano desde Patio ("Registrar Unidad en Patio") o con la
@@ -146,114 +163,11 @@ export function normalizePatioStatus(value: string): PatioStatus {
  */
 export const SEED_UNITS: Unit[] = []
 
-let tripSeq = 0
-const t = (
-  folio: number,
-  eco: string,
-  operador: string,
-  carga: string,
-  destino: string,
-  kind: TripKind,
-  salida: string,
-  extra: Partial<Trip> = {},
-): Trip => ({
-  id: `trip-${++tripSeq}`,
-  folio,
-  eco,
-  operador,
-  turno: 'M1',
-  carga,
-  destino,
-  entregas: [],
-  kind,
-  cluster: kind === 'LOCAL' ? '' : 'V-2',
-  salida,
-  tiempoEst: '—',
-  eta: '',
-  rampa: String(10 + (folio % 24)),
-  planStatus: 'CARGADO',
-  supStatus: 'CARGADO',
-  regresaManana: false,
-  observaciones: '',
-  ...extra,
-})
-
-export const SEED_TRIPS: Trip[] = [
-  t(1, '3153', 'ALEJANDRO RAMON DE LA CRUZ', 'CS00381093', 'EKT VILLAHERMOSAS 2 MADERO', 'LOCAL', '07:34'),
-  t(2, '3426', 'MARTIN FRANCISCO CHAN', 'CS00381099', 'EKT VILLAHERMOSA TAMULTE', 'LOCAL', '07:04', {
-    entregas: ['EKT TIERRA COLORADA', 'VTEX: 45871530', 'VTEX: 45851650', 'VTEX: 45865367', 'VTEX: 45861694', 'VTEX: 45865194'],
-  }),
-  t(3, '4142', 'CRISTOBAL RIOS SANCHEZ', 'CS00381057', 'MEGA ELEKTRA PLAZA FLORIDA', 'FORÁNEO', '08:52', {
-    regresaManana: true,
-    entregas: ['APA DEK TEXISTEPEC VERACRUZ'],
-  }),
-  t(4, '4118', 'NABOPOLASSAR RAMOS PERALTA', 'CS00381061', 'EKT LA VENTA TABASCO', 'LOCAL', '07:54', { regresaManana: true, cluster: 'TAB-1' }),
-  t(5, '4115', 'CRESCENCIO BETANCOURT CHABLE', 'CS00381058', 'EKT MINATITLAN HIDALGO', 'LOCAL', '08:06', { regresaManana: true, cluster: 'VER-1' }),
-  t(6, '4135', 'ANDERSON LUISAO HERNANDEZ', 'CS00381059', 'MEGA ELEKTRA TRANSISMICA JALTI', 'LOCAL', '08:52', { regresaManana: true, cluster: 'VER-1' }),
-  t(8, '4198', 'JULIO CESAR PEREZ PEREZ', 'CS00381060', 'SYR MINATITLAN', 'LOCAL', '14:24', {
-    regresaManana: true,
-    cluster: 'VER-1',
-    entregas: ['EKT MINATITLAN HIDALGO'],
-  }),
-  t(9, '3483', 'ARMANDO GARCIA ARIAS', 'CS00381091', 'EKT CHIAPAS REFORMA', 'FORÁNEO', '06:46', { cluster: 'CHIS-1' }),
-  t(10, '3393', 'ANTONIO PEREZ PALMA', 'CS00381096', 'EKT VILLAHERMOSAS 2 MADERO', 'LOCAL', '07:34'),
-  t(11, '3237', 'NESTOR ANDRES HERNANDEZ PEREZ', 'CS00381092', 'EKT CHIAPAS REFORMA', 'FORÁNEO', '07:34', { cluster: 'CHIS-1' }),
-  t(12, '3471', 'JESUS CRUZ PEREZ', 'CS00381094', 'EKT VILLAHERMOSAS 2 MADERO', 'LOCAL', '07:34'),
-  t(13, '3401', 'MARTIN CRUZ GARCIA', 'CS00381095', 'EKT VILLAHERMOSAS 2 MADERO', 'LOCAL', '10:14'),
-  t(14, '4188', 'LUIS ALBERTH DOMINGUEZ', 'CS00381097', 'EKT YAJALON CHIAPAS', 'FORÁNEO', '10:14', { regresaManana: true, cluster: 'CHIS-2' }),
-  t(15, '4104', 'CARLOS HIPOLITO BAUTISTA', 'CS00381068', 'EKT COMALCALCO', 'LOCAL', '08:52', { regresaManana: true, cluster: 'TAB-2' }),
-  t(16, '4168', 'RODOLFO ANTONIO EVIA', 'CS00381090', 'EKT CHIAPAS REFORMA', 'FORÁNEO', '13:31', { regresaManana: true, cluster: 'CHIS-1' }),
-  t(18, '4125', 'LUIS ENRIQUE LEON BAUTISTA', 'CS00381078', 'EKT MEGA MACUSPANA TABASCO', 'LOCAL', '13:46', { regresaManana: true, cluster: 'TAB-3' }),
-  t(21, '5026', 'CONCEPCION ARIAS VELAZQUEZ', 'CS00381100', 'MEGA ELEKTRA JUAN SABINES', 'LOCAL', '12:09', { regresaManana: true }),
-  t(24, '3412', 'JOSE VICTOR IZQUIERDO', 'CS00381111', 'EKT MEGA JUCHITAN', 'FORÁNEO', '12:09', {
-    noRegresaDias: 1.5,
-    cluster: 'OAX-1',
-    entregas: ['EKT JUCHITAN 2'],
-  }),
-  t(26, '3301', 'JOSE MIGUEL GARCIA CONCEPCION', 'CS00381102', 'EKT SAN CRISTOBAL DE LAS CASAS', 'FORÁNEO', '12:09', {
-    regresaManana: true,
-    cluster: 'CHIS-2',
-    entregas: ['MEGA ELEKTRA JUAN SABINES', 'TM SAN CRISTOBAL DE LAS CASAS'],
-  }),
-  t(27, '5066', 'PEDRO VITAL SANCHEZ', 'CS00381107', 'Ekt Tapachula Salinas', 'FORÁNEO', '12:09', {
-    noRegresaDias: 1.46,
-    cluster: 'CHIS-3',
-    entregas: ['EKT Tapachula Mercado San Juan', 'Mega Elektra Diaz Ordaz'],
-  }),
-  t(28, '5068', 'FRANCISCO LOPEZ VILLEGAS', 'CS00381112', 'EKT MEGA MATIAS ROMERO', 'FORÁNEO', '14:56', {
-    noRegresaDias: 1.38,
-    cluster: 'OAX-1',
-    rampa: '31',
-  }),
-  t(30, '3455', 'JUAN CARLOS ROJAS CASANOVA', 'CS00381098', 'EKT YAJALON CHIAPAS', 'FORÁNEO', '12:09', { regresaManana: true, cluster: 'CHIS-2' }),
-  t(31, '4193', 'ATILANO RODRIGUEZ MENDEZ', 'CS00381110', 'Ekt Mega Salina Cruz', 'LOCAL', '12:09', {
-    regresaManana: true,
-    cluster: 'OAX-2',
-    entregas: ['Ekt Salina Cruz', 'VTEX: 45845125'],
-  }),
-  t(33, '3488', 'LUIS ALFONSO LAZARO MAY', 'CS00381065', 'Ekt Motos Tecolutilla', 'LOCAL', '14:28', { cluster: 'TAB-2' }),
-  t(35, '5054', 'SEBASTIAN GONGORA JIMENEZ', 'CS00381124', 'EKT CHIAPAS COMALAPA', 'FORÁNEO', '15:00', {
-    cluster: 'CHIS-3',
-    entregas: [
-      'EKT OCOZOCUAUTLA',
-      'EKT Motos Tonalá Chis',
-      'VTEX: 45849796',
-      'VTEX: 45843471',
-      'VTEX: 45844306',
-      'VTEX: 45835978',
-      'VTEX: 45855487',
-      'VTEX: 45846609',
-      'VTEX: 45844946',
-      'VTEX: 45858862',
-      'VTEX: 45843082',
-      'VTEX: 45843626',
-      'VTEX: 45860289',
-      'VTEX: 45852745',
-    ],
-  }),
-  t(36, '5054', 'SEBASTIAN GONGORA JIMENEZ', 'CS00381125', 'EKT VILLA FLORES', 'FORÁNEO', '15:30', { cluster: 'CHIS-3' }),
-  t(39, '3153', 'ALEJANDRO RAMON DE LA CRUZ', 'CS00381066', 'Ekt Motos Tecolutilla', 'LOCAL', '14:42', { cluster: 'TAB-2' }),
-]
+/**
+ * La planeación también arranca desde cero: no hay viajes de demostración. Los viajes se
+ * capturan a mano ("Nuevo Viaje") o se suben desde la plantilla de Excel/CSV.
+ */
+export const SEED_TRIPS: Trip[] = []
 
 /** Incidencias que se registran en el rol semanal de operadores (lunes a domingo). */
 export type IncidenciaTipo = 'ASISTENCIA' | 'FALTA' | 'INCAPACIDAD' | 'PERMISO' | 'TRASLADO' | 'VACACIONES'
@@ -272,27 +186,11 @@ export const INCIDENCIA_LABEL: Record<IncidenciaTipo, string> = {
 /** `"<fecha ISO>|<operador>"` → incidencia registrada ese día. Sin registro se asume ASISTENCIA. */
 export type IncidenciaRegistro = Record<string, IncidenciaTipo>
 
-/** Operadores que se capturan en el rol, tomados de la plantilla de viajes. */
-export const OPERADORES: string[] = [...new Set(SEED_TRIPS.map((t) => t.operador))]
-  .filter((nombre) => nombre && nombre !== 'POR ASIGNAR')
-  .sort()
+/**
+ * La plantilla de operadores del rol también arranca vacía: se captura a mano en la
+ * pestaña de Incidencias o se sube desde la plantilla CSV.
+ */
+export const SEED_OPERADORES: string[] = []
 
-
-function makeHistoryEntry(daysAgo: number, label: string): HistoryEntry {
-  const date = new Date(Date.UTC(2026, 9, 1 - daysAgo, 18, 0, 0))
-  return {
-    id: `hist-${daysAgo}`,
-    savedAt: date.toISOString(),
-    planDate: date.toISOString().slice(0, 10),
-    label,
-    snapshot: { units: SEED_UNITS, trips: SEED_TRIPS },
-  }
-}
-
-export const SEED_HISTORY: HistoryEntry[] = [
-  makeHistoryEntry(1, 'Cierre de turno'),
-  makeHistoryEntry(2, 'Cierre de turno'),
-  makeHistoryEntry(3, 'Corte mediodía'),
-  makeHistoryEntry(4, 'Cierre de turno'),
-  makeHistoryEntry(5, 'Cierre de turno'),
-]
+/** El historial guardado no arranca con cortes de demostración. */
+export const SEED_HISTORY: HistoryEntry[] = []

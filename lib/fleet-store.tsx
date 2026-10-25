@@ -2,7 +2,10 @@
 
 import { createContext, useCallback, useContext, useMemo, useReducer, type ReactNode } from 'react'
 import {
+  mergeOperadores,
+  normalizeOperador,
   SEED_HISTORY,
+  SEED_OPERADORES,
   SEED_TRIPS,
   SEED_UNITS,
   type FleetData,
@@ -22,6 +25,8 @@ interface FleetState {
   planDate: string
   /** Rol de incidencias: `"<fecha ISO>|<operador>"` → incidencia del día. */
   incidencias: IncidenciaRegistro
+  /** Plantilla de operadores que se capturan en el rol de incidencias. */
+  operadores: string[]
 }
 
 type Action =
@@ -39,6 +44,9 @@ type Action =
   | { type: 'hydrate'; data: FleetData }
   | { type: 'importUnits'; units: Unit[] }
   | { type: 'setIncidencia'; key: string; tipo: IncidenciaTipo }
+  | { type: 'addOperador'; nombre: string }
+  | { type: 'removeOperador'; nombre: string }
+  | { type: 'importOperadores'; nombres: string[] }
 
 function reducer(state: FleetState, action: Action): FleetState {
   switch (action.type) {
@@ -107,9 +115,16 @@ function reducer(state: FleetState, action: Action): FleetState {
         history: action.data.history,
         planDate: action.data.planDate,
         incidencias: action.data.incidencias ?? {},
+        operadores: action.data.operadores ?? [],
       }
     case 'setIncidencia':
       return { ...state, incidencias: { ...state.incidencias, [action.key]: action.tipo } }
+    case 'addOperador':
+      return { ...state, operadores: mergeOperadores(state.operadores, [action.nombre]) }
+    case 'importOperadores':
+      return { ...state, operadores: mergeOperadores(state.operadores, action.nombres) }
+    case 'removeOperador':
+      return { ...state, operadores: state.operadores.filter((nombre) => normalizeOperador(nombre) !== normalizeOperador(action.nombre)) }
     case 'importUnits': {
       const byEco = new Map(state.units.map((u) => [u.eco, u]))
       for (const unit of action.units) byEco.set(unit.eco, unit)
@@ -135,6 +150,7 @@ function useFleetValue() {
     history: SEED_HISTORY,
     planDate: '2026-10-01',
     incidencias: {},
+    operadores: SEED_OPERADORES,
   })
 
   const tripsByEco = useMemo(() => {

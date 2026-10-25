@@ -2,20 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { CalendarClock, CalendarDays, ClipboardList, Clock, Layers, Radio, Tv } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { CalendarDays, Clock } from 'lucide-react'
 import { useFleet } from '@/lib/fleet-store'
 import { formatPlanDate } from '@/lib/fleet-format'
-
-export type TabId = 'patio' | 'planeacion' | 'supervisor' | 'resumen' | 'incidencias'
-
-const TABS: { id: TabId; label: string; icon: typeof Layers }[] = [
-  { id: 'patio', label: 'Patio', icon: Layers },
-  { id: 'planeacion', label: 'Planeación', icon: CalendarClock },
-  { id: 'supervisor', label: 'Supervisor', icon: Radio },
-  { id: 'resumen', label: 'Resumen', icon: Tv },
-  { id: 'incidencias', label: 'Incidencias', icon: ClipboardList },
-]
+import { SectionMenu, type TabId } from './section-menu'
 
 export function Header({
   tab,
@@ -48,31 +38,7 @@ export function Header({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <nav aria-label="Secciones" className="flex overflow-x-auto rounded-xl border border-border bg-card/70 p-1 scrollbar-thin">
-            {TABS.map(({ id, label, icon: Icon }) => {
-              const active = tab === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onTabChange(id)}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm transition-colors',
-                    active
-                      ? 'border-primary/40 bg-primary/10 font-semibold text-foreground'
-                      : 'border-transparent text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden />
-                  {label}
-                  {id === 'resumen' && (
-                    <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">{units.length}</span>
-                  )}
-                </button>
-              )
-            })}
-          </nav>
+          <SectionMenu tab={tab} onTabChange={onTabChange} badge={units.length} />
           <div className="flex flex-wrap items-center gap-2">{actions}</div>
         </div>
       </div>
