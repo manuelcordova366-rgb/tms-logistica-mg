@@ -10,14 +10,12 @@ const previewHost =
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  ...(previewHost
-    ? {
-        allowedDevOrigins: [previewHost],
-        experimental: {
-          serverActions: { allowedOrigins: [previewHost] },
-        },
-      }
-    : {}),
+  experimental: {
+    // Set by `next upgrade --agent=security` (Next.js 16.4.0 → 16.4.3, security advisory).
+    agentUpgrade: 'security',
+    ...(previewHost ? { serverActions: { allowedOrigins: [previewHost] } } : {}),
+  },
+  ...(previewHost ? { allowedDevOrigins: [previewHost] } : {}),
   typescript: {
     ignoreBuildErrors: true,
   },

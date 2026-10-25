@@ -48,9 +48,16 @@ with `` `x-forwarded-host` … does not match `origin` … Aborting the action `
 `next.config.mjs` therefore sets, only when `BASE44_PREVIEW_MODE === "1"`:
 
 ```js
-allowedDevOrigins: [previewHost],                       // dev assets / HMR
-experimental: { serverActions: { allowedOrigins: [previewHost] } }   // load/save the day
+experimental: {
+  agentUpgrade: 'security',   // recorded by `next upgrade --agent=security` (16.4.0 → 16.4.3)
+  ...(previewHost ? { serverActions: { allowedOrigins: [previewHost] } } : {}), // load/save the day
+},
+...(previewHost ? { allowedDevOrigins: [previewHost] } : {}),   // dev assets / HMR
 ```
+
+`agentUpgrade: 'security'` is always present (Next 16.4.3 supports the option) so the security
+upgrade stays recorded even when the sandbox flag is unset; `serverActions.allowedOrigins` and
+`allowedDevOrigins` still only appear inside the preview sandbox.
 
 `previewHost` is `3000-$BASE44_PUBLIC_HOST_SUFFIX`. The compose file passes
 `BASE44_PREVIEW_MODE` and `BASE44_PUBLIC_HOST_SUFFIX` into the `web` service; with the flag
